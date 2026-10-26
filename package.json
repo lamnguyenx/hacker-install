@@ -1,0 +1,69 @@
+{
+  "name": "hacker-install-ts",
+  "version": "0.1.0",
+  "description": "Install and update single-binary CLI tools from GitHub, GitLab, Codeberg, mise/aqua and Docker releases",
+  "type": "module",
+  "packageManager": "bun@1.4.3",
+  "bin": {
+    "hi": "./dist/npm/index.js",
+    "hacker-install-ts": "./dist/npm/index.js"
+  },
+  "files": [
+    "dist/npm/index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "bun": ">=1.4.3"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "biome check . && tsc --noEmit",
+    "build": "bun run scripts/build.ts",
+    "build:all": "bun run scripts/build.ts --all",
+    "build:npm": "bun run scripts/build.ts --npm",
+    "migrate:python": "bun run scripts/migrate-from-python.ts",
+    "prepublishOnly": "bun run check && bun test && bun run build:npm"
+  },
+  "keywords": [
+    "cli",
+    "installer",
+    "updater",
+    "github-releases",
+    "gitlab-releases",
+    "codeberg",
+    "forgejo",
+    "mise",
+    "aqua",
+    "docker",
+    "bun",
+    "typescript"
+  ],
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lamnguyenx/hacker-install-ts.git"
+  },
+  "homepage": "https://github.com/lamnguyenx/hacker-install-ts",
+  "bugs": {
+    "url": "https://github.com/lamnguyenx/hacker-install-ts/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "cli-table3": "0.6.5",
+    "commander": "15.0.0",
+    "fflate": "0.8.3",
+    "picocolors": "1.1.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/bun": "1.4.4",
+    "typescript": "7.0.2"
+  }
+}

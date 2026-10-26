@@ -1,0 +1,67 @@
+name: Build binaries
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload assets to (e.g. v0.1.0)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check and test
+        run: |
+          bun run check
+          bun test
+
+      - name: Build all release targets
+        run: bun run build:all
+
+      - name: Verify native binary
+        run: |
+          ./dist/hacker-install-linux-x86_64 --help
+          ./dist/hacker-install-linux-x86_64 me --version
+
+      - name: Inspect binaries
+        run: |
+          file dist/hacker-install-* || true
+          ls -lh dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hacker-install-binaries
+          path: |
+            dist/hacker-install-*
+            dist/checksums.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub release assets
+        if: github.event_name == 'release' || inputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+          files: |
+            dist/hacker-install-*
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

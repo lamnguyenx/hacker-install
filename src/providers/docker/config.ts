@@ -1,0 +1,8 @@
+// Shell wrapper written to installPath/<toolname>.
+// {ref}        — image CLI ref (e.g. alpine:latest)
+// {args}       — "$@" when image has ENTRYPOINT; "<toolname> "$@"" when it does not
+// {docker_opts}— extra raw shell options supplied by the user
+export const WRAPPER_TEMPLATE = `#!/bin/sh
+termflag=$([ -t 0 ] && echo -n "-t")
+docker run --rm -i $termflag -v "\${PWD}:/tmp/cmd" -w /tmp/cmd {docker_opts} {ref} {args}
+`;
