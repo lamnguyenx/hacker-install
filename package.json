@@ -1,6 +1,6 @@
 {
   "name": "hacker-install-ts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Install and update single-binary CLI tools from GitHub, GitLab, Codeberg, mise/aqua and Docker releases",
   "type": "module",
   "packageManager": "bun@1.4.3",

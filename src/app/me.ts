@@ -77,7 +77,7 @@ export async function me(ctx: AppContext, options: MeOptions = {}): Promise<void
 
     const detectedName = invokedBinaryName();
     const name = isValidToolName(detectedName) ? detectedName : "hi";
-    const command = `${name} get ${PROJECT_REPO} -n ${name}`;
+    const command = `${name} get ${PROJECT_REPO} -n ${name} -y`;
     ctx.io.print(`Running: ${command}`);
     const result = await ctx.exec.run(command, { interactive: true });
     if (result.code !== 0) {
