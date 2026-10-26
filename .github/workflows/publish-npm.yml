@@ -11,6 +11,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -32,6 +34,7 @@ jobs:
         run: bun run build:npm
 
       - name: Publish
+        if: env.NPM_TOKEN != ''
         run: bun publish --access public
         env:
           NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
