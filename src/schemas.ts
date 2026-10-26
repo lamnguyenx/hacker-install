@@ -236,6 +236,16 @@ export function parseToolState(value: unknown): ToolStateFile {
   if (!isRecord(value)) {
     throw new Error("State file must contain a JSON object");
   }
+  const looksLegacy =
+    !("tools" in value) &&
+    Object.keys(value).length > 0 &&
+    Object.values(value).every((entry) => isRecord(entry));
+  if (looksLegacy) {
+    throw new Error(
+      "Legacy Python state detected (flat '<source>#<name>' map). " +
+        "Back it up and delete it, then reinstall your tools with 'hi get'.",
+    );
+  }
   const version = asNumber(value.version, STATE_VERSION);
   if (version > STATE_VERSION) {
     throw new Error(
@@ -263,6 +273,12 @@ export function parseToolState(value: unknown): ToolStateFile {
 
 export function parseConfig(value: unknown): ToolConfig {
   if (!isRecord(value)) return defaultConfig();
+  if (isRecord(value.config)) {
+    throw new Error(
+      "Legacy Python config detected (nested 'config' object). " +
+        "Back it up and delete it, then re-run 'hi config' with the settings you want.",
+    );
+  }
   const version = asNumber(value.version, CONFIG_VERSION);
   if (version > CONFIG_VERSION) {
     throw new Error(

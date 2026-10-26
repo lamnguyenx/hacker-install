@@ -13,13 +13,13 @@ afterEach(async () => {
 });
 
 describe("paths", () => {
-  test("uses the hacker-install-ts XDG layout", () => {
+  test("uses the hacker-install XDG layout", () => {
     const paths = resolvePaths({}, "/home/u");
     expect(paths.configFile).toBe(
-      join("/home/u", ".config", "hacker", "hacker-install-ts", "config.jsonc"),
+      join("/home/u", ".config", "hacker", "hacker-install", "config.jsonc"),
     );
     expect(paths.stateFile).toBe(
-      join("/home/u", ".local", "state", "hacker", "hacker-install-ts", "state.json"),
+      join("/home/u", ".local", "state", "hacker", "hacker-install", "state.json"),
     );
   });
 
@@ -29,10 +29,10 @@ describe("paths", () => {
       "/home/u",
     );
     expect(paths.configFile).toBe(
-      join("/home/u", ".config", "hacker", "hacker-install-ts", "config.jsonc"),
+      join("/home/u", ".config", "hacker", "hacker-install", "config.jsonc"),
     );
     expect(paths.stateFile).toBe(
-      join("/home/u", ".local", "state", "hacker", "hacker-install-ts", "state.json"),
+      join("/home/u", ".local", "state", "hacker", "hacker-install", "state.json"),
     );
   });
 
@@ -131,6 +131,20 @@ describe("state store", () => {
 
   test("rejects newer state versions", () => {
     expect(() => parseToolState({ version: 99, tools: {} })).toThrow("newer than supported");
+  });
+
+  test("rejects legacy Python state instead of silently dropping it", () => {
+    expect(() =>
+      parseToolState({
+        "https://github.com/coder/code-server#code-server": { url: "x", tag_name: "v1" },
+      }),
+    ).toThrow("Legacy Python state");
+  });
+
+  test("rejects legacy Python config", () => {
+    expect(() => parseConfig({ config: { path: "~/bin", bundle_path: "" } })).toThrow(
+      "Legacy Python config",
+    );
   });
 
   test("config parser keeps defaults for missing fields", () => {

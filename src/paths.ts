@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { ensureDir } from "./fs-utils.ts";
 
-export const APP_NAMESPACE = join("hacker", "hacker-install-ts");
+export const APP_NAMESPACE = join("hacker", "hacker-install");
 
 export interface AppPaths {
   home: string;

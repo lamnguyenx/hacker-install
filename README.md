@@ -19,7 +19,7 @@
 
 **Hacker Install** gives you the `hi` command to install and keep single-binary CLI tools updated on Linux, macOS, and WSL. It works with GitHub, GitLab, and Forgejo-powered Codeberg releases, and supports mise/aqua registry entries and Docker images.
 
-This is the TypeScript/Bun implementation. It has feature parity with the original Python CLI, but uses a new TypeScript-only config/state format. See [Migration from the Python version](#migration-from-the-python-version).
+This is the TypeScript/Bun implementation and the only maintained version of Hacker Install. It replaces the original Python CLI and owns all config/state under `~/.config/hacker/hacker-install/` and `~/.local/state/hacker/hacker-install/`.
 
 <a href="#getting-started"><img src=".github/images/787536.gif" alt="CLI demo" width="100%" /></a>
 
@@ -38,6 +38,7 @@ This is the TypeScript/Bun implementation. It has feature parity with the origin
 - **Docker images** — wrap any image as a local CLI with `docker@image`.
 - **Interactive asset selection** — pick a specific release asset when automatic selection is not enough.
 - **State sync** — export/import your installed-tool list with `hi pull`.
+- **Readable output** — width-aware, colour-coded lists that stay intact in narrow terminals and when piped.
 - **No libmagic dependency** — archive and executable detection is built in.
 
 ## Table of Contents
@@ -67,9 +68,10 @@ This is the TypeScript/Bun implementation. It has feature parity with the origin
   - [Pre-releases](#pre-releases)
   - [Provider tokens](#provider-tokens)
 - [Config and state format](#config-and-state-format)
-- [Migration from the Python version](#migration-from-the-python-version)
+- [Upgrading from the Python version](#upgrading-from-the-python-version)
 - [Requirements](#requirements)
 - [Development](#development)
+- [Docs](#docs)
 - [Release assets](#release-assets)
 - [License](#license)
 
@@ -146,6 +148,8 @@ npm install -g hacker-install-ts
 ```
 
 Both `hi` and `hacker-install-ts` are installed as command names.
+
+> Installing from a local clone? Use `bun link` (after `bun run build:npm`) so the command tracks your checkout, or `bun add -g "$PWD"` / `npm i -g .` for a copy. `bun add -g .` is broken in Bun 1.4.3 — it resolves the relative spec to an empty package name.
 
 > If you installed globally with Bun/npm, update with `bun update -g hacker-install-ts` or `npm update -g hacker-install-ts`. `hi me --upgrade` detects a global package install and prints this reminder instead of overwriting `~/bin/hi`.
 
@@ -365,7 +369,19 @@ hi ls --json
 hi ls --hold
 ```
 
-`hi ls --json` prints an array with `name`, `version`, `type`, `hold`, `source`, and `description` fields for scripts.
+Output adapts to the terminal width — no borders, no wrapping:
+
+```text
+Installed tools (2)
+
+  code-server · v4.143.1 · binary · github
+  github.com/coder/code-server · VS Code in the browser
+
+  lazygit · v0.54.1 · binary · github · held
+  github.com/jesseduffield/lazygit · Simple terminal UI for git commands
+```
+
+Held tools carry a bold yellow `held` tag. Low-priority columns are dropped before anything is cut mid-word, and piped output is never truncated. `hi ls --json` prints an array with `name`, `version`, `type`, `hold`, `source`, and `description` fields for scripts.
 
 ### Show info about an installed tool
 
@@ -412,26 +428,26 @@ hi hold k9s --unset
 Export your TS state file somewhere accessible and install the same tools on another machine:
 
 ```bash
-hi pull --url https://raw.githubusercontent.com/you/dotfiles/main/hacker-install-ts/state.json
+hi pull --url https://raw.githubusercontent.com/you/dotfiles/main/hacker-install/state.json
 
 # Also reinstall tools whose local version differs
 hi pull --url https://example.com/state.json --override
 ```
 
-The remote file must use the TypeScript state format documented below. Python-format state files are not read directly; use the migration helper instead.
+The remote file must use the TypeScript state format documented below.
 
 ## Configuration
 
 Config lives at:
 
 ```text
-${XDG_CONFIG_HOME:-~/.config}/hacker/hacker-install-ts/config.jsonc
+${XDG_CONFIG_HOME:-~/.config}/hacker/hacker-install/config.jsonc
 ```
 
 State lives at:
 
 ```text
-${XDG_STATE_HOME:-~/.local/state}/hacker/hacker-install-ts/state.json
+${XDG_STATE_HOME:-~/.local/state}/hacker/hacker-install/state.json
 ```
 
 For tests or portable setups, `HI_CONFIG_DIR` and `HI_STATE_DIR` override the directories.
@@ -448,8 +464,10 @@ Default: `~/bin`.
 
 Directory-wrapped releases (for example `bin/code-server` plus a `lib/` runtime) are extracted here. Default: `~/Downloads2`.
 
+Single-file binaries are copied into the install path instead, and downloaded archives are removed after extraction — `bundlePath` is not a download history.
+
 ```bash
-hi config --bundle-path ~/.local/share/hacker-install-ts
+hi config --bundle-path ~/.local/share/hacker-install
 ```
 
 ### Pre-releases
@@ -539,29 +557,28 @@ Provider-specific fields:
 
 Config and state files are written atomically with mode `0600`.
 
-## Migration from the Python version
+## Upgrading from the Python version
 
-This implementation deliberately uses a new schema and new paths, so it never reads or overwrites the Python version's files:
+The Python CLI is sunset. This version owns the same paths, so uninstall the Python entry point first — two `hi` binaries writing the same files would clobber each other:
 
 ```text
-Python: ~/.config/hacker/hacker-install/config.jsonc
-        ~/.local/state/hacker/hacker-install/state.json
-
-TS:     ~/.config/hacker/hacker-install-ts/config.jsonc
-        ~/.local/state/hacker/hacker-install-ts/state.json
+~/.config/hacker/hacker-install/config.jsonc
+~/.local/state/hacker/hacker-install/state.json
 ```
 
-Both versions install to `~/bin` and expose `hi`, so use one at a time (or give them different install paths).
+The file format changed with the rewrite:
 
-To import an existing Python state file:
+- Config is flat camelCase (`installPath`, `bundlePath`, `preRelease`, `tokens`) instead of the nested `config` object with snake_case keys.
+- State is `{ "version": 1, "tools": { "<name>": { ... } } }`, keyed by tool name with camelCase release fields instead of `<source>#<name>` keys with snake_case fields.
+
+The state file only records installed tools — the binaries already live in your install path — so the simplest migration is to reinstall what you use:
 
 ```bash
-bun run migrate:python
-# or
-bun run migrate:python -- ~/.local/state/hacker/hacker-install/state.json
+hi config --path ~/.local/bin
+hi get https://github.com/coder/code-server
 ```
 
-The helper converts `<source>#<name>` keys, snake_case release fields, Git provider URLs, `mise:`/`docker:` prefixes, and the old config token fields. It leaves the Python files untouched.
+Leftover Python-format files are rejected with an error instead of being silently ignored, so `hi` never overwrites them by accident.
 
 ## Requirements
 
@@ -596,9 +613,19 @@ bun run build:all
 
 # npm bundle at dist/npm/index.js
 bun run build:npm
+
+# Link this checkout as the global `hi` (tracks dist/npm/index.js)
+bun link
 ```
 
 The default test suite is fully mocked: it does not need network access, Docker, sudo, or a real package manager. Real installs can be exercised manually with `bun run dev -- get <url>`.
+
+After changing source, rebuild before checking the linked command: `bun run build:npm`, then run `hi ...`.
+
+## Docs
+
+- [`docs/important/`](docs/important/) — durable notes: config/state contract, install flow, CLI output style.
+- [`docs/plans/`](docs/plans/) — dated implementation write-ups, including trials, errors, and lessons learnt.
 
 ## Release assets
 

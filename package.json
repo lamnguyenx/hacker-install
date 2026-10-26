@@ -26,7 +26,6 @@
     "build": "bun run scripts/build.ts",
     "build:all": "bun run scripts/build.ts --all",
     "build:npm": "bun run scripts/build.ts --npm",
-    "migrate:python": "bun run scripts/migrate-from-python.ts",
     "prepublishOnly": "bun run check && bun test && bun run build:npm"
   },
   "keywords": [

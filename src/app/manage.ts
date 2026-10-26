@@ -13,6 +13,7 @@ import {
 } from "../fs-utils.ts";
 import { PackageInstaller } from "../pkgs/main.ts";
 import { type InstalledTool, isPackageTool, parseToolState } from "../schemas.ts";
+import { renderToolList, terminalWidth } from "../ui/list.ts";
 import { renderTable } from "../ui/table.ts";
 import { isNone, isValidToolName } from "../utils.ts";
 import { get } from "./get.ts";
@@ -26,6 +27,7 @@ interface ListRow {
   name: string;
   version: string;
   type: string;
+  provider: string;
   hold: boolean;
   source: string;
   description: string;
@@ -39,17 +41,25 @@ function rowsFor(ctx: AppContext, options: ListOptions): ListRow[] {
       name: tool.name,
       version: tool.tagName,
       type: isPackageTool(tool) ? tool.packageType : "binary",
+      provider: tool.provider,
       hold: tool.holdUpdate,
       source: tool.source,
       description: tool.description || "",
-    }));
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function listInstalled(ctx: AppContext, options: ListOptions = {}): void {
   const rows = rowsFor(ctx, options);
 
   if (options.asJson) {
-    ctx.io.print(JSON.stringify(rows, null, 2));
+    ctx.io.print(
+      JSON.stringify(
+        rows.map(({ provider: _provider, ...row }) => row),
+        null,
+        2,
+      ),
+    );
     return;
   }
 
@@ -60,25 +70,10 @@ export function listInstalled(ctx: AppContext, options: ListOptions = {}): void 
 
   const title = options.holdUpdate ? "Installed tools kept on hold" : "Installed tools";
   ctx.io.print(
-    renderTable(
-      rows.map((row) => ({
-        Name: row.name,
-        Version: row.version,
-        Type: row.type === "binary" ? row.type : pc.cyan(row.type),
-        Hold: row.hold ? pc.yellow("yes") : "",
-        Source: row.source,
-        Description: pc.dim(row.description),
-      })),
-      {
-        title,
-        ignoreKeys: options.holdUpdate ? ["Hold"] : [],
-        expand: true,
-        columnOptions: {
-          Name: { minWidth: 4 },
-          Version: { minWidth: 7 },
-        },
-      },
-    ),
+    renderToolList(rows, {
+      title,
+      width: ctx.io.isTTY ? terminalWidth() : 0,
+    }),
   );
 }
 
