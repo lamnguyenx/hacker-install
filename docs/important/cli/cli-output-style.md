@@ -60,15 +60,39 @@ Rules:
 - picocolors handles `NO_COLOR` / `FORCE_COLOR` / TTY detection; do not hand-roll escapes.
 - Do not colour every column. Two or three accents per line is the budget.
 
-## Tables (only for prompts and dense comparisons)
+## Preview blocks (no box tables)
 
-`cli-table3` (`src/ui/table.ts`) is still acceptable when the user must **compare several
-fields before acting**: asset selection, "tools to be installed" confirmation, `hi info`.
-Even then:
+`src/ui/table.ts` renders data as styled text, not a bordered table. There are no
+ASCII/box-drawing borders and `cli-table3` is not a dependency.
 
-- Prefer few columns and short values.
-- `hi info` is the next candidate for a key–value block; long URLs in a table wrap badly.
-- Do not use a table just to print a list of names.
+- **Single row → vertical field list.** `hi get`'s install preview and `hi info` print one
+  `Key   Value` line per field. Long filenames and URLs stay complete instead of wrapping in a
+  cell.
+- **Several rows → aligned columns.** Asset lists and cross-tool comparisons use a bold +
+  underlined header row and plain space alignment.
+- **Emphasis carries hierarchy:** titles are bold + underlined, keys are bold and coloured,
+  long free-text values (over 44 columns) are italic.
+- **Width:** only non-final columns are truncated (with `…`) at 44 columns; the last column is
+  allowed to run. Piped output and `NO_COLOR` keep the same text, just without styling.
+
+## Progress bars
+
+The bar lives in `src/ui/progress.ts` and follows these rules. They are not cosmetic: every one
+of them prevents a specific failure seen in the wild.
+
+- **Stay strictly narrower than the terminal** (`columns - 1`). A line that fills the last
+  column makes the terminal wrap; the next update then clears the new row and leaves the old
+  frame behind — a trail of half-drawn bars.
+- **Do not depend on `\r`.** Some terminals, pty wrappers and log renderers translate carriage
+  returns into newlines. Each frame is newline-terminated; the next frame emits
+  `ESC[1A` + `ESC[2K` (cursor up, erase line) and redraws. `finish()` erases the line the same
+  way.
+- **Degrade instead of wrapping:** drop ETA, then speed, then shrink the bar (minimum 8
+  columns), then middle-ellipsize the label.
+- **Throttle to ~12 fps** and skip identical frames.
+- **Draw 100% once.** A download can sit at full size while aria2c finalises; redrawing would
+  show a falling speed at 100%.
+- **Enable only when stderr is a TTY**; `--quiet` and piped runs stay clean.
 
 ## JSON
 

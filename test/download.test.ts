@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { download } from "../src/download.ts";
 import { HttpError } from "../src/http.ts";
-import { FakeHttp, silentLogger } from "./helpers.ts";
+import { FakeExec, FakeHttp, silentLogger } from "./helpers.ts";
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -135,6 +135,140 @@ describe("download", () => {
         progress: false,
       }),
     ).rejects.toBeInstanceOf(HttpError);
+    expect(http.requests).toHaveLength(1);
+  });
+});
+
+describe("aria2c downloader", () => {
+  const ARIA2_VERSION = "aria2 version 1.37.0\nCopyright (C) 2006, 2019 Tatsuhiro Tsujikawa";
+
+  function aria2Exec(
+    onDownload: (args: string[]) => { code?: number } | Promise<{ code?: number }> = () => ({}),
+  ): FakeExec {
+    return new FakeExec(async (args) => {
+      if (args.includes("--version")) return { code: 0, stdout: ARIA2_VERSION };
+      return onDownload(args);
+    });
+  }
+
+  function flag(args: string[], name: string): string | undefined {
+    const prefix = `--${name}=`;
+    return args.find((arg) => arg.startsWith(prefix))?.slice(prefix.length);
+  }
+
+  test("uses aria2c with 8 connections, resume flags and a quiet console", async () => {
+    const dir = await tempDir();
+    const http = new FakeHttp(() => streamResponse([], { contentLength: 4 }));
+    const exec = aria2Exec(async (args) => {
+      const out = flag(args, "out") as string;
+      const at = flag(args, "dir") as string;
+      await writeFile(join(at, out), "abcd");
+      return { code: 0 };
+    });
+
+    const output = await download("https://example.com/tool.bin", dir, {
+      http,
+      exec,
+      logger: silentLogger(),
+      progress: false,
+    });
+
+    expect(await readFile(output, "utf8")).toBe("abcd");
+    const call = exec.calls.find((args) => args[0] === "aria2c" && !args.includes("--version"));
+    expect(call).toBeDefined();
+    expect(call).toContain("--continue=true");
+    expect(call).toContain("--allow-overwrite=true");
+    expect(call).toContain("--auto-file-renaming=false");
+    expect(call).toContain("--max-connection-per-server=8");
+    expect(call).toContain("--split=8");
+    expect(call).toContain("--user-agent=hacker-install");
+    expect(call).toContain("--summary-interval=0");
+    // The body is never streamed through the HTTP client: only the size probe.
+    expect(http.requests).toHaveLength(1);
+  });
+
+  test("honors a custom connection count", async () => {
+    const dir = await tempDir();
+    const http = new FakeHttp(() => streamResponse([], { contentLength: 1 }));
+    const exec = aria2Exec(async (args) => {
+      await writeFile(join(flag(args, "dir") as string, flag(args, "out") as string), "a");
+      return { code: 0 };
+    });
+
+    await download("https://example.com/tool.bin", dir, {
+      http,
+      exec,
+      connections: 12,
+      logger: silentLogger(),
+      progress: false,
+    });
+
+    const call = exec.calls.find((args) => args[0] === "aria2c" && !args.includes("--version"));
+    expect(call).toContain("--max-connection-per-server=12");
+    expect(call).toContain("--split=12");
+  });
+
+  test("falls back to the built-in downloader when aria2c fails", async () => {
+    const dir = await tempDir();
+    let bodyRequests = 0;
+    const http = new FakeHttp((_url, options) => {
+      if (options.signal) return streamResponse([], { contentLength: 4 });
+      bodyRequests += 1;
+      return streamResponse([new TextEncoder().encode("abcd")], { contentLength: 4 });
+    });
+    const exec = aria2Exec(() => ({ code: 1 }));
+
+    const output = await download("https://example.com/tool.bin", dir, {
+      http,
+      exec,
+      logger: silentLogger(),
+      progress: false,
+    });
+
+    expect(await readFile(output, "utf8")).toBe("abcd");
+    expect(bodyRequests).toBe(1);
+  });
+
+  test("resumes from bytes aria2c already wrote", async () => {
+    const dir = await tempDir();
+    const output = join(dir, "tool.bin");
+    const http = new FakeHttp((_url, options) => {
+      if (options.signal) return streamResponse([], { contentLength: 4 });
+      expect(options.headers?.Range).toBe("bytes=2-");
+      return streamResponse([new TextEncoder().encode("cd")], { status: 206, contentLength: 2 });
+    });
+    const exec = aria2Exec(async (args) => {
+      await writeFile(join(flag(args, "dir") as string, flag(args, "out") as string), "ab");
+      return { code: 0 };
+    });
+
+    await download("https://example.com/tool.bin", dir, {
+      http,
+      exec,
+      logger: silentLogger(),
+      progress: false,
+    });
+
+    expect(await readFile(output, "utf8")).toBe("abcd");
+  });
+
+  test("ignores a binary that only pretends to be aria2c", async () => {
+    const dir = await tempDir();
+    const http = new FakeHttp(() =>
+      streamResponse([new TextEncoder().encode("real")], { contentLength: 4 }),
+    );
+    const exec = new FakeExec();
+
+    await download("https://example.com/tool.bin", dir, {
+      http,
+      exec,
+      logger: silentLogger(),
+      progress: false,
+    });
+
+    expect(
+      exec.calls.filter((args) => args[0] === "aria2c" && !args.includes("--version")),
+    ).toHaveLength(0);
     expect(http.requests).toHaveLength(1);
   });
 });

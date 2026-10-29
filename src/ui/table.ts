@@ -1,4 +1,3 @@
-import Table from "cli-table3";
 import pc from "picocolors";
 
 export type StyleFn = (value: string) => string;
@@ -38,39 +37,44 @@ export const DIM_TABLE_THEME: TableTheme = {
   columnStyles: [pc.dim, pc.dim, pc.dim, pc.dim, pc.dim],
 };
 
-const TABLE_CHARS = {
-  top: "━",
-  "top-mid": "┳",
-  "top-left": "┏",
-  "top-right": "┓",
-  bottom: "─",
-  "bottom-mid": "┴",
-  "bottom-left": "└",
-  "bottom-right": "┘",
-  left: "│",
-  "left-mid": "┡",
-  mid: "━",
-  "mid-mid": "╇",
-  right: "│",
-  "right-mid": "┩",
-  middle: "│",
-} as const;
-
+// ANSI escape sequences (SGR) emitted by picocolors.
 const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+const ELLIPSIS = "…";
+/** Cells wider than this get truncated (except the last column) or italicized. */
+const MAX_CELL_WIDTH = 44;
+/** Values longer than this are set in italics, as running text rather than a field. */
+const ITALIC_THRESHOLD = 44;
 
 function visibleLength(value: string): number {
-  // string-width handles unicode and ANSI in cli-table3; this is only used for
-  // title centering and simple width hints.
   return value.replace(ANSI_PATTERN, "").length;
 }
 
-function renderTitle(title: string, width: number, style: StyleFn): string {
-  if (!title) return "";
-  const text = style(title);
-  const padding = Math.max(0, Math.floor((width - visibleLength(title)) / 2));
-  return `\n${" ".repeat(padding)}${text}`;
+function pad(value: string, width: number): string {
+  return value + " ".repeat(Math.max(0, width - visibleLength(value)));
 }
 
+function truncate(value: string, max: number): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, Math.max(0, max - 1))}${ELLIPSIS}`;
+}
+
+function styleValue(value: string, style: StyleFn): string {
+  const styled = style(value);
+  return value.length > ITALIC_THRESHOLD ? pc.italic(styled) : styled;
+}
+
+function renderTitle(title: string, style: StyleFn): string {
+  return title ? pc.underline(style(title)) : "";
+}
+
+/**
+ * Renders tabular data as styled text instead of a bordered (ASCII/box-drawing)
+ * table: bold + underlined headings, colored fields, italic long values, and
+ * plain space alignment.
+ *
+ * A single row is rendered as a vertical "Key  Value" list, which reads much
+ * better for previews with long fields (URLs, descriptions, filenames).
+ */
 export function renderTable(
   data: Array<Record<string, unknown>>,
   options: ShowTableOptions = {},
@@ -80,38 +84,60 @@ export function renderTable(
   const theme = options.theme ?? DEFAULT_TABLE_THEME;
   const ignoreKeys = new Set(options.ignoreKeys ?? []);
   const keys = Object.keys(data[0] ?? {}).filter((key) => !ignoreKeys.has(key));
+  if (keys.length === 0) return "";
 
-  const table = new Table({
-    head: keys.map((key, index) => {
+  const heading = renderTitle(options.title ?? "", theme.titleStyle);
+  const single = data.length === 1;
+
+  const lines: string[] = [];
+  if (single) {
+    const row = data[0] ?? {};
+    const keyWidth = Math.min(MAX_CELL_WIDTH, Math.max(...keys.map((key) => key.length)));
+    for (const [index, key] of keys.entries()) {
       const style = theme.columnStyles[index % theme.columnStyles.length] as StyleFn;
-      return style(key);
-    }),
-    chars: TABLE_CHARS,
-    wordWrap: !options.noWrap,
-    wrapOnWordBoundary: true,
-    style: {
-      head: [],
-      border: [],
-      "padding-left": 1,
-      "padding-right": 1,
-    },
-  });
+      const raw = row[key] === undefined || row[key] === null ? "" : String(row[key]);
+      const label = pc.underline(pc.bold(style(key)));
+      lines.push(`  ${pad(label, keyWidth)}  ${styleValue(raw, style)}`);
+    }
+  } else {
+    const widths = keys.map((key, index) => {
+      const values = data.map((row) =>
+        row[key] === undefined || row[key] === null ? "" : String(row[key]),
+      );
+      const longest = Math.max(key.length, ...values.map((value) => value.length));
+      // The last column may run over; earlier columns are capped so the row stays readable.
+      return index === keys.length - 1 ? longest : Math.min(MAX_CELL_WIDTH, longest);
+    });
 
-  for (const row of data) {
-    table.push(
-      keys.map((key, index) => {
-        const style = theme.columnStyles[index % theme.columnStyles.length] as StyleFn;
-        const value = row[key] === undefined || row[key] === null ? "" : String(row[key]);
-        return style(value);
-      }),
+    lines.push(
+      keys
+        .map((key, index) => {
+          const style = theme.columnStyles[index % theme.columnStyles.length] as StyleFn;
+          const heading = pc.underline(pc.bold(style(key)));
+          return pad(heading, widths[index] as number);
+        })
+        .join("  ")
+        .trimEnd(),
     );
+
+    for (const row of data) {
+      lines.push(
+        keys
+          .map((key, index) => {
+            const style = theme.columnStyles[index % theme.columnStyles.length] as StyleFn;
+            const raw = row[key] === undefined || row[key] === null ? "" : String(row[key]);
+            const width = widths[index] as number;
+            const value = index === keys.length - 1 ? raw : truncate(raw, width);
+            return pad(styleValue(value, style), width);
+          })
+          .join("  ")
+          .trimEnd(),
+      );
+    }
   }
 
-  const rendered = table.toString();
-  const firstLine = rendered.split("\n")[0] ?? "";
-  const title = renderTitle(options.title ?? "", visibleLength(firstLine), theme.titleStyle);
-  const body = firstLine ? rendered : "";
-  return `${title}${body ? `\n${theme.tableStyle(body)}` : ""}`;
+  const body = lines.join("\n");
+  return heading ? `\n${heading}\n\n${body}` : `\n${body}`;
 }
 
 // Backwards-friendly alias used by the app layer.

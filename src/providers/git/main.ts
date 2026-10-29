@@ -1,9 +1,10 @@
+import { join } from "node:path";
 import pc from "picocolors";
 import type { AppContext } from "../../context.ts";
 import { download } from "../../download.ts";
 import { CliError } from "../../errors.ts";
 import { extractUrl } from "../../extract.ts";
-import { createTempDir, ensureDir, removePath } from "../../fs-utils.ts";
+import { createTempDir, ensureDir, pathExists, removePath } from "../../fs-utils.ts";
 import { installBin } from "../../helper/install.ts";
 import { PENALTY_EXTENSIONS } from "../../helper/release-scorer.ts";
 import { detectPackageTypeFromAssetName, PackageInstaller } from "../../pkgs/main.ts";
@@ -198,6 +199,7 @@ export interface GitGetOptions {
   prompt?: boolean;
   name?: string;
   hold?: boolean;
+  force?: boolean;
   dockerOpts?: string | null;
 }
 
@@ -323,11 +325,12 @@ export class GitInteractProvider {
     const release = this.selectedRelease;
     if (!release || !this.repo.info) return "y";
     const info = this.repo.info;
+    const label = (text: string) => pc.underline(pc.bold(text));
     this.ctx.io.print(
-      `\n${pc.bold(pc.green(`📑 Repo     : ${info.fullName}`))}` +
-        `\n${pc.blue(`🌟 Stars    : ${info.stargazersCount}`)}` +
-        `\n${pc.magenta(`🔮 Language : ${info.language || "N/A"}`)}` +
-        `\n${pc.yellow(`🔥 Title    : ${info.description}`)}`,
+      `\n${label("📑 Repo")}     : ${info.fullName}` +
+        `\n${label("🌟 Stars")}    : ${pc.blue(String(info.stargazersCount))}` +
+        `\n${label("🔮 Language")} : ${pc.magenta(info.language || "N/A")}` +
+        `\n${label("🔥 Title")}    : ${pc.italic(pc.yellow(info.description || "N/A"))}`,
     );
 
     showReleaseAssets(this.ctx, release, toolname);
@@ -373,6 +376,7 @@ export class GitInteractProvider {
       }
       await download(candidate.browserDownloadUrl, tempDir, {
         http: this.ctx.http,
+        exec: this.ctx.exec,
         logger: this.ctx.logger,
       });
       const installer = new PackageInstaller(effectivePackage, {
@@ -406,6 +410,28 @@ export class GitInteractProvider {
       exec: this.ctx.exec,
       logger: this.ctx.logger,
     });
+  }
+
+  private async isCurrentInstall(
+    toolname: string,
+    asset: ReleaseAsset,
+    installed: InstalledTool | undefined,
+  ): Promise<boolean> {
+    if (!installed) return false;
+    if (installed.source !== this.repo.repoUrl) return false;
+    if (!this.selectedRelease || installed.tagName !== this.selectedRelease.tagName) return false;
+    if (installed.assets[0]?.name !== asset.name) return false;
+
+    const packageType =
+      detectPackageTypeFromAssetName(asset.name) ?? (this.packageMode ? this.packageType : null);
+    const installedAsPackage =
+      installed.installMethod === "package" || installed.packageType !== "binary";
+    if ((packageType !== null) !== installedAsPackage) return false;
+
+    // Package installs live outside the install path. Binary and bundle
+    // installs go through a link in the install path, so use that to detect a
+    // tool that was removed by hand and must be reinstalled.
+    return installedAsPackage || pathExists(join(this.ctx.installPath, toolname));
   }
 
   async get(options: GitGetOptions = {}): Promise<void> {
@@ -446,6 +472,13 @@ export class GitInteractProvider {
       knownNames,
     });
     if (!asset) return;
+
+    if (!options.force && !options.hold && (await this.isCurrentInstall(toolname, asset, cached))) {
+      this.ctx.logger.info(
+        `${toolname} ${cached?.tagName ?? ""} is already installed (use --force to reinstall)`,
+      );
+      return;
+    }
 
     let resolvedWords = customWords ?? cachedWords;
     if (options.prompt) {

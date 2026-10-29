@@ -2,11 +2,13 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { chmod, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createLogger } from "../src/logger.ts";
 import { GitInteractProvider, getRepoInfo } from "../src/providers/git/main.ts";
 import {
   createTestContext,
   FakeExec,
   FakeHttp,
+  FakeIO,
   jsonResponse,
   writeElf,
   writeTarGz,
@@ -119,6 +121,34 @@ describe("GitHub get flow", () => {
     expect(tool?.tagName).toBe("v1.0.0");
     expect(tool?.installMethod).toBe("binary");
     expect(await readFile(join(root, "bin", "tool"))).toBeDefined();
+  });
+
+  test("skips reinstalling when the same release is already installed", async () => {
+    const bytes = await binaryTarGz();
+    const http = await gitHubHttp("tool-linux-x86_64.tar.gz", bytes);
+    const io = new FakeIO();
+    const logs: string[] = [];
+    const logger = createLogger("info", (text) => logs.push(text));
+    const { ctx, cleanup } = await createTestContext({ http, exec: new FakeExec(), io, logger });
+    cleanups.push(cleanup);
+
+    const repo = await getRepoInfo(ctx, "https://github.com/o/r");
+    const provider = new GitInteractProvider(repo, ctx);
+    await provider.get({ prompt: false, name: "tool" });
+
+    const assetRequests = () =>
+      http.requests.filter(
+        (request) => request.url === "https://example.com/tool-linux-x86_64.tar.gz",
+      ).length;
+    expect(assetRequests()).toBe(1);
+
+    await provider.get({ prompt: true, name: "tool" });
+    expect(assetRequests()).toBe(1);
+    expect(io.prompts).toHaveLength(0);
+    expect(logs.join("")).toContain("already installed");
+
+    await provider.get({ prompt: false, name: "tool", force: true });
+    expect(assetRequests()).toBe(2);
   });
 
   test("supports --file exact asset matching", async () => {

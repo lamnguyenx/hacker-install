@@ -111,7 +111,7 @@ Recovery is to delete the old file and either re-run `hi config` or reinstall th
 
 - Do not add a second namespace, a fallback path, or a legacy reader. One path, one shape.
 - Keep `installPath` and `bundlePath` semantically separate; see
-  [install-flow.md](./install-flow.md).
+  [install flow](../install/install-flow.md).
 - Any new persisted field must be optional on read and defaulted in `parseConfig` /
   `parseInstalledTool`, so old files keep loading.
 - Bump `CONFIG_VERSION` / `STATE_VERSION` only with a real migration story; newer-version files

@@ -107,6 +107,7 @@ export function buildProgram(ctx: AppContext): Command {
     .option("-f, --file <file>", "Select a specific release asset filename")
     .option("-n, --name <name>", "Custom name to save the tool as")
     .option("-y, --yes", "Approve without prompt")
+    .option("-F, --force", "Reinstall even when the same release is already installed")
     .option("--pkg", "Install as OS package (deb/rpm/appimage)")
     .option("--docker-opts <opts>", "Extra options to pass to the docker run command")
     .option("-v, --verbose", "Enable verbose mode")
@@ -122,6 +123,7 @@ export function buildProgram(ctx: AppContext): Command {
         name: options.name ?? "",
         pkg: Boolean(options.pkg),
         hold: Boolean(parsed.tag),
+        force: Boolean(options.force),
         dockerOpts: options.dockerOpts ?? null,
       });
     });

@@ -179,6 +179,7 @@ export async function extractUrl(
   const logger = options.logger ?? createLogger("info");
   const path = await download(url, at, {
     http: options.http,
+    exec: options.exec,
     logger,
     progress: options.progress,
   });

@@ -1,5 +1,9 @@
 # Install flow and on-disk layout
 
+<p align="center">
+  <img src="../../../.github/images/flow.png" alt="How it works" width="800">
+</p>
+
 Two settings define where things end up:
 
 | Setting       | Default        | Holds                                                               |
@@ -43,6 +47,14 @@ Key points (source: `src/providers/git/main.ts` `get()`, `src/helper/install.ts`
   system package manager and only recorded in state.
 - Docker installs write a wrapper script to `installPath/<name>`; the image is not stored.
 
+## Downloads
+
+`hi` prefers `aria2c` when it is installed: `--continue=true` (resume), `--split=8` and
+`--max-connection-per-server=8` by default. aria2c runs quietly and the CLI draws its own
+single-line progress bar from the growing file size. When aria2c is missing, fails, or stops
+short, the built-in downloader resumes the same partial file with an HTTP `Range` request.
+Archives still live only in the per-install temp dir and are deleted after extraction.
+
 ## Removal (`hi rm`)
 
 `src/app/manage.ts` removes:
@@ -56,11 +68,13 @@ Package installs are removed through the package manager instead.
 ## Implications
 
 - `bundlePath` is not a download history. If you want to keep tarballs, that needs a new
-  option (see the follow-up in the 2026-10-26 plan).
+  option (see the follow-up in the
+  [2026-10-26 plan](../../plans/2026/10/26/2026-10-26-global-install-config-sunset-and-list-ux.md)).
 - Moving `bundlePath` breaks existing bundle symlinks in `installPath`. Re-run the installs,
   or fix the links.
 - `installPath` must be on `PATH`; `bundlePath` must not be.
-- The global `hi` itself is separate from this flow: `bun link` points `~/.bun/bin/hi` at
-  `dist/npm/index.js` in the checkout, so rebuild after changing source. End users normally
-  install `hacker-install` from npm or download a standalone binary; `hi me --upgrade` updates
-  the standalone binary, not an npm install.
+- The global `hi` itself is separate from this flow. `bun link` points `~/.bun/bin/hi` at
+  `dist/npm/index.js` in the checkout, so it runs the last build; for an editable install that
+  runs `src/index.ts` directly, see [Local development](../development/local-setup.md). End
+  users normally install `hacker-install` from npm or download a standalone binary;
+  `hi me --upgrade` updates the standalone binary, not an npm install.
