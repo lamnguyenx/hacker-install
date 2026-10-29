@@ -79,13 +79,13 @@ export async function installCompletion(
     return;
   }
 
-  const completionDir = join(ctx.paths.home, ".local", "share", "hacker-install-ts", "completions");
+  const completionDir = join(ctx.paths.home, ".local", "share", "hacker-install", "completions");
   const completionFile = join(completionDir, `hi.${shell}`);
   await ensureDir(completionDir, 0o755);
   await writeTextAtomic(completionFile, script, 0o644);
 
   const rcFile = shell === "zsh" ? join(ctx.paths.home, ".zshrc") : join(ctx.paths.home, ".bashrc");
-  const marker = "# hacker-install-ts completion";
+  const marker = "# hacker-install completion";
   const existing = (await readTextIfExists(rcFile)) ?? "";
   if (!existing.includes(marker)) {
     const line = `\n${marker}\nsource ${shellQuote(completionFile)}\n`;

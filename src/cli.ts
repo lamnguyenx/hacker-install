@@ -89,7 +89,7 @@ export function buildProgram(ctx: AppContext): Command {
   const program = new Command("hi")
     .description(
       "Hacker Install - GitHub / GitLab / Codeberg / mise / Docker release installer (Linux/macOS). " +
-        "Repo: https://github.com/lamnguyenx/hacker-install-ts",
+        "Repo: https://github.com/lamnguyenx/hacker-install",
     )
     .showHelpAfterError()
     .action(() => {

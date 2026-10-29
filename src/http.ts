@@ -1,5 +1,5 @@
 export const DEFAULT_HTTP_TIMEOUT_MS = 60_000;
-export const USER_AGENT = "hacker-install-ts";
+export const USER_AGENT = "hacker-install";
 
 export interface HttpOptions {
   headers?: Record<string, string>;

@@ -4,7 +4,7 @@ import { invokedBinaryName, isGlobalPackageInstall } from "../src/app/me.ts";
 describe("binary name detection", () => {
   test("uses the compiled executable name", () => {
     expect(invokedBinaryName("/home/u/bin/ir", ["ir"], {})).toBe("ir");
-    expect(invokedBinaryName("/usr/local/bin/hacker-install-ts", [], {})).toBe("hacker-install-ts");
+    expect(invokedBinaryName("/usr/local/bin/hacker-install", [], {})).toBe("hacker-install");
   });
 
   test("uses process.title for symlinked compiled binaries", () => {
@@ -37,7 +37,7 @@ describe("binary name detection", () => {
   test("detects global npm/Bun installs", () => {
     expect(
       isGlobalPackageInstall(
-        ["bun", "/home/u/.bun/install/global/node_modules/hacker-install-ts/dist/npm/index.js"],
+        ["bun", "/home/u/.bun/install/global/node_modules/hacker-install/dist/npm/index.js"],
         {},
       ),
     ).toBe(true);

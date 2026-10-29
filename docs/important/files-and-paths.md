@@ -5,10 +5,13 @@ sunset; there is no second location and no second schema.
 
 ## Locations
 
-| File   | Path                                                                 |
-| ------ | -------------------------------------------------------------------- |
-| Config | `${XDG_CONFIG_HOME:-~/.config}/hacker/hacker-install/config.jsonc`   |
-| State  | `${XDG_STATE_HOME:-~/.local/state}/hacker/hacker-install/state.json` |
+| File              | Path                                                                 |
+| ----------------- | -------------------------------------------------------------------- |
+| Config            | `${XDG_CONFIG_HOME:-~/.config}/hacker/hacker-install/config.jsonc`   |
+| State             | `${XDG_STATE_HOME:-~/.local/state}/hacker/hacker-install/state.json` |
+| Completion (zsh)  | `~/.local/share/hacker-install/completions/hi.zsh`                   |
+| Completion (bash) | `~/.local/share/hacker-install/completions/hi.bash`                  |
+| Completion (fish) | `~/.config/fish/completions/hi.fish`                                 |
 
 Overrides (mainly tests and portable setups):
 
@@ -20,6 +23,17 @@ HI_STATE_DIR=/tmp/hi/state     # file becomes $HI_STATE_DIR/state.json
 Relative `XDG_*` values are ignored and fall back to the home-relative defaults.
 
 Source: `src/paths.ts` (`APP_NAMESPACE`, `resolvePaths`).
+
+## Shell completion
+
+`hi --install-completion <shell>` writes the scripts listed above. For bash and zsh it also
+appends a sourced block to `~/.bashrc` / `~/.zshrc`, guarded by the
+`# hacker-install completion` marker; fish reads its completion directory directly.
+
+Completions are not config: they are not covered by `HI_CONFIG_DIR` / `HI_STATE_DIR`, and the
+paths are home-relative rather than XDG-resolved. Upgrading from the old
+`hacker-install-ts` layout leaves the previous marker in place; remove that block and re-run
+the install command.
 
 ## Config schema
 

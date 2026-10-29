@@ -61,4 +61,6 @@ Package installs are removed through the package manager instead.
   or fix the links.
 - `installPath` must be on `PATH`; `bundlePath` must not be.
 - The global `hi` itself is separate from this flow: `bun link` points `~/.bun/bin/hi` at
-  `dist/npm/index.js` in the checkout, so rebuild after changing source.
+  `dist/npm/index.js` in the checkout, so rebuild after changing source. End users normally
+  install `hacker-install` from npm or download a standalone binary; `hi me --upgrade` updates
+  the standalone binary, not an npm install.

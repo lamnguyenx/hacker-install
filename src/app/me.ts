@@ -69,8 +69,8 @@ export async function me(ctx: AppContext, options: MeOptions = {}): Promise<void
     if (isGlobalPackageInstall()) {
       ctx.io.print(
         "This looks like a global npm/Bun install. Update it with:\n" +
-          "  bun update -g hacker-install-ts\n" +
-          "  npm update -g hacker-install-ts",
+          "  bun update -g hacker-install\n" +
+          "  npm update -g hacker-install",
       );
       return;
     }

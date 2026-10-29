@@ -7,8 +7,8 @@
   <a href="https://bun.sh/">
     <img src="https://img.shields.io/badge/Bun-1.4%2B-black" alt="Bun Version" />
   </a>
-  <a href="https://www.npmjs.com/package/hacker-install-ts">
-    <img src="https://img.shields.io/npm/v/hacker-install-ts" alt="npm" />
+  <a href="https://www.npmjs.com/package/hacker-install">
+    <img src="https://img.shields.io/npm/v/hacker-install" alt="npm" />
   </a>
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="License" />
@@ -19,7 +19,7 @@
 
 **Hacker Install** gives you the `hi` command to install and keep single-binary CLI tools updated on Linux, macOS, and WSL. It works with GitHub, GitLab, and Forgejo-powered Codeberg releases, and supports mise/aqua registry entries and Docker images.
 
-This is the TypeScript/Bun implementation and the only maintained version of Hacker Install. It replaces the original Python CLI and owns all config/state under `~/.config/hacker/hacker-install/` and `~/.local/state/hacker/hacker-install/`.
+This is the TypeScript/Bun implementation and the only maintained version of Hacker Install. It replaces the original Python CLI (archived as [`hacker-install-python`](https://github.com/lamnguyenx/hacker-install-python)) and owns all config/state under `~/.config/hacker/hacker-install/` and `~/.local/state/hacker/hacker-install/`.
 
 <a href="#getting-started"><img src=".github/images/787536.gif" alt="CLI demo" width="100%" /></a>
 
@@ -71,6 +71,7 @@ This is the TypeScript/Bun implementation and the only maintained version of Hac
 - [Upgrading from the Python version](#upgrading-from-the-python-version)
 - [Requirements](#requirements)
 - [Development](#development)
+- [Versioning and releases](#versioning-and-releases)
 - [Docs](#docs)
 - [Release assets](#release-assets)
 - [License](#license)
@@ -79,20 +80,20 @@ This is the TypeScript/Bun implementation and the only maintained version of Hac
 
 ### Option 1: Standalone binary (recommended)
 
-Download the latest binary for your platform from [GitHub Releases](https://github.com/lamnguyenx/hacker-install-ts/releases). No Bun installation is required.
+Download the latest binary for your platform from [GitHub Releases](https://github.com/lamnguyenx/hacker-install/releases). No Bun installation is required.
 
 #### Linux x86_64 (glibc)
 
 ```bash
 mkdir -p ~/bin
-curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install-ts/releases/latest/download/hacker-install-linux-x86_64
+curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install/releases/latest/download/hacker-install-linux-x86_64
 chmod +x ~/bin/hi
 ```
 
 #### Linux aarch64 (glibc)
 
 ```bash
-curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install-ts/releases/latest/download/hacker-install-linux-aarch64
+curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install/releases/latest/download/hacker-install-linux-aarch64
 chmod +x ~/bin/hi
 ```
 
@@ -108,10 +109,10 @@ apk add libstdc++
 
 ```bash
 # Apple Silicon
-curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install-ts/releases/latest/download/hacker-install-darwin-arm64
+curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install/releases/latest/download/hacker-install-darwin-arm64
 
 # Intel
-curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install-ts/releases/latest/download/hacker-install-darwin-x86_64
+curl -Lo ~/bin/hi https://github.com/lamnguyenx/hacker-install/releases/latest/download/hacker-install-darwin-x86_64
 
 chmod +x ~/bin/hi
 ```
@@ -119,7 +120,7 @@ chmod +x ~/bin/hi
 Then register the binary under the name `hi` so `hi me --upgrade` updates the same file:
 
 ```bash
-~/bin/hi get https://github.com/lamnguyenx/hacker-install-ts -n hi
+~/bin/hi get https://github.com/lamnguyenx/hacker-install -n hi
 ```
 
 Add `~/bin` to your `PATH`:
@@ -141,23 +142,23 @@ The npm package is a Bun-target bundle, so Bun 1.4+ must be installed.
 
 ```bash
 # With Bun (recommended)
-bun add -g hacker-install-ts
+bun add -g hacker-install
 
 # Or with npm; the `hi` launcher runs through Bun
-npm install -g hacker-install-ts
+npm install -g hacker-install
 ```
 
-Both `hi` and `hacker-install-ts` are installed as command names.
+The package installs a single command: `hi`.
 
 > Installing from a local clone? Use `bun link` (after `bun run build:npm`) so the command tracks your checkout, or `bun add -g "$PWD"` / `npm i -g .` for a copy. `bun add -g .` is broken in Bun 1.4.3 — it resolves the relative spec to an empty package name.
 
-> If you installed globally with Bun/npm, update with `bun update -g hacker-install-ts` or `npm update -g hacker-install-ts`. `hi me --upgrade` detects a global package install and prints this reminder instead of overwriting `~/bin/hi`.
+> If you installed globally with Bun/npm, update with `bun update -g hacker-install` or `npm update -g hacker-install`. `hi me --upgrade` detects a global package install and prints this reminder instead of overwriting `~/bin/hi`.
 
 ### Option 3: Build from source
 
 ```bash
-git clone https://github.com/lamnguyenx/hacker-install-ts
-cd hacker-install-ts
+git clone https://github.com/lamnguyenx/hacker-install
+cd hacker-install
 bun install
 bun run dev -- --help
 
@@ -559,7 +560,10 @@ Config and state files are written atomically with mode `0600`.
 
 ## Upgrading from the Python version
 
-The Python CLI is sunset. This version owns the same paths, so uninstall the Python entry point first — two `hi` binaries writing the same files would clobber each other:
+The Python CLI is sunset. Its repository is archived as
+[`hacker-install-python`](https://github.com/lamnguyenx/hacker-install-python). This version
+owns the same paths, so uninstall the Python entry point first — two `hi` binaries writing the
+same files would clobber each other:
 
 ```text
 ~/.config/hacker/hacker-install/config.jsonc
@@ -622,9 +626,19 @@ The default test suite is fully mocked: it does not need network access, Docker,
 
 After changing source, rebuild before checking the linked command: `bun run build:npm`, then run `hi ...`.
 
+## Versioning and releases
+
+Versions use calendar versioning: `YYYY.MM.DD`, for example `2026.10.29`. `package.json` is the single source of truth; `src/version.ts` reads it at build time, so rebuild after a bump before checking `hi --version`.
+
+The npm package `hacker-install` installs only the `hi` command. `npm publish --access public` runs the full gate (`bun run check`, `bun test`, `bun run build:npm`) through `prepublishOnly` and requires 2FA on the npm account.
+
+A brand-new package name is briefly listed as the `0.0.0-stage` placeholder while npm processes it; the real version appears within about a minute. GitHub release tags mirror the version with a `v` prefix (`v2026.10.29`). A published release triggers both the binary build and the npm publish workflows; the npm workflow only publishes when the `NPM_TOKEN` repository secret is set.
+
+See [`docs/important/releasing.md`](docs/important/releasing.md) for the full checklist, auth fallbacks, and verification steps.
+
 ## Docs
 
-- [`docs/important/`](docs/important/) — durable notes: config/state contract, install flow, CLI output style.
+- [`docs/important/`](docs/important/) — durable notes: config/state contract, install flow, CLI output style, versioning and releases.
 - [`docs/plans/`](docs/plans/) — dated implementation write-ups, including trials, errors, and lessons learnt.
 
 ## Release assets
@@ -639,6 +653,8 @@ After changing source, rebuild before checking the linked command: `bun run buil
 | `hacker-install-darwin-arm64`       | macOS Apple Silicon | —     |
 
 `dist/checksums.txt` contains SHA-256 checksums when building with `--all`.
+
+Release tags use the same calendar version with a `v` prefix (`v2026.10.29`); the npm package uses the version without the prefix.
 
 ## License
 

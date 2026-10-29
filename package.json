@@ -1,12 +1,11 @@
 {
-  "name": "hacker-install-ts",
-  "version": "0.1.1",
+  "name": "hacker-install",
+  "version": "2026.10.29",
   "description": "Install and update single-binary CLI tools from GitHub, GitLab, Codeberg, mise/aqua and Docker releases",
   "type": "module",
   "packageManager": "bun@1.4.3",
   "bin": {
-    "hi": "./dist/npm/index.js",
-    "hacker-install-ts": "./dist/npm/index.js"
+    "hi": "./dist/npm/index.js"
   },
   "files": [
     "dist/npm/index.js",
@@ -45,11 +44,11 @@
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lamnguyenx/hacker-install-ts.git"
+    "url": "git+https://github.com/lamnguyenx/hacker-install.git"
   },
-  "homepage": "https://github.com/lamnguyenx/hacker-install-ts",
+  "homepage": "https://github.com/lamnguyenx/hacker-install",
   "bugs": {
-    "url": "https://github.com/lamnguyenx/hacker-install-ts/issues"
+    "url": "https://github.com/lamnguyenx/hacker-install/issues"
   },
   "publishConfig": {
     "access": "public"
