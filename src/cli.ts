@@ -152,8 +152,8 @@ export function buildProgram(ctx: AppContext): Command {
     .description("List all installed CLI tools")
     .option("--hold", "List tools that are kept on hold")
     .option("--json", "Print installed tools as JSON for scripting")
-    .action((options) => {
-      listInstalled(ctx, {
+    .action(async (options) => {
+      await listInstalled(ctx, {
         holdUpdate: Boolean(options.hold),
         asJson: Boolean(options.json),
       });
@@ -163,8 +163,8 @@ export function buildProgram(ctx: AppContext): Command {
     .command("info")
     .description("Show info about an installed CLI tool")
     .argument("<name>", "CLI command name")
-    .action((name: string) => {
-      getInfo(ctx, name);
+    .action(async (name: string) => {
+      await getInfo(ctx, name);
     });
 
   program

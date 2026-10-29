@@ -17,9 +17,10 @@
 
 <br>
 
-**Hacker Install** gives you the `hi` command to install and keep single-binary CLI tools
-updated on Linux, macOS, and WSL. It reads GitHub, GitLab, Codeberg/Forgejo releases, and also
-supports mise/aqua registry entries and Docker images.
+**Hacker Install** gives you the `hi` command to install and keep CLI tools updated on Linux,
+macOS, and WSL. It reads GitHub, GitLab, Codeberg/Forgejo releases, and also supports
+mise/aqua registry entries and Docker images; releases can be single binaries or directory
+bundles.
 
 This is the TypeScript/Bun implementation and the only maintained version of Hacker Install. It
 replaces the original Python CLI (archived as
@@ -35,15 +36,18 @@ config/state under `~/.config/hacker/hacker-install/` and
 ## Highlights
 
 - **Release installs** — give `hi` a repository URL and it picks the right asset for your OS,
-  architecture, libc, and package family.
+  architecture, libc, and package family. Directory bundles keep their versioned tree under
+  `bundlePath/<name>/<version-dir>/`.
 - **System packages** — `.deb`, `.rpm`, and AppImage assets with `--pkg`.
 - **Other sources** — `mise@terraform` (registry/aqua) and `docker@image` wrappers.
 - **Idempotent installs** — `hi get` stops when the same release and asset are already
   installed; `-F/--force` reinstalls.
 - **Fast, resumable downloads** — aria2c with 8 connections when installed, built-in resume
   fallback otherwise.
-- **Readable output** — width-aware text previews (bold/italic/underline, no box tables) and a
-  single-line progress bar that survives narrow terminals and pty wrappers.
+- **Readable output** — width-aware text previews (bold/italic/underline, no box tables),
+  install-shape-aware `hi ls` / `hi info` (`binary`, `bundle`, `symlink`, or package type plus
+  the symlink target), and a single-line progress bar that survives narrow terminals and pty
+  wrappers.
 
 ## Layout
 
@@ -78,13 +82,24 @@ binary, npm/Bun, and build-from-source paths. Then jump to the source you use:
 [Docker](docs/important/install/docker.md); manage the results with
 [Installed tools](docs/important/manage/installed-tools.md).
 
+## Installed layout
+
+- **Single binary** — copied to `installPath/<name>`.
+- **Directory bundle** — kept at `bundlePath/<name>/<version-dir>/`; `installPath/<name>` is a
+  symlink to its `bin/<name>`.
+- **System package** — installed by the system package manager and recorded in state.
+- **Docker** — a wrapper script at `installPath/<name>`; the image is not stored.
+
+`hi ls` shows the active shape and, for bundles and other symlinks, the link target. Existing
+flat bundles are not moved automatically; reinstall with `--force` to get the versioned layout.
+
 ## Docs
 
 ### [CLI](docs/important/cli/)
 
 - [Commands](docs/important/cli/commands.md): the command table, flags, and shell completion.
 - [CLI output style](docs/important/cli/cli-output-style.md): list and preview renderers,
-  progress-bar rules, colour semantics, JSON stability.
+  install-shape tags, progress-bar rules, colour semantics, JSON stability.
 
 ### [Getting started](docs/important/getting-started/)
 
@@ -101,13 +116,13 @@ binary, npm/Bun, and build-from-source paths. Then jump to the source you use:
 - [mise/aqua](docs/important/install/mise-aqua.md): `mise@tool` registry installs.
 - [Docker](docs/important/install/docker.md): wrapping an image as a local command.
 - [Asset selection](docs/important/install/asset-selection.md): interactive IDs and `--file`.
-- [Install flow and layout](docs/important/install/install-flow.md): temp dirs, bundles,
-  symlinks, downloads, removal.
+- [Install flow and layout](docs/important/install/install-flow.md): temp dirs, versioned
+  bundle trees, symlinks, downloads, removal.
 
 ### [Managing tools](docs/important/manage/)
 
-- [Installed tools](docs/important/manage/installed-tools.md): list, info, remove, upgrade,
-  hold.
+- [Installed tools](docs/important/manage/installed-tools.md): list, info (install shape and
+  symlink target), remove, upgrade, hold.
 - [State sync](docs/important/manage/state-sync.md): `hi pull` to clone your tool list.
 
 ### [Configuration](docs/important/configuration/)

@@ -14,7 +14,7 @@ hi get https://gitlab.com/gitlab-org/cli -n glab
 hi get https://codeberg.org/forgejo/forgejo
 ```
 
-`hi` reads the latest stable release, scores every asset for your OS, architecture, libc, and package family, and installs the best match. If a directory-wrapped release contains `bin/<tool>`, the whole tree is kept and `bin/<tool>` is symlinked into your install path.
+`hi` reads the latest stable release, scores every asset for your OS, architecture, libc, and package family, and installs the best match. If a directory-wrapped release contains `bin/<tool>`, the whole tree is kept under `bundlePath/<tool>/<version-dir>/` and `bin/<tool>` is symlinked into your install path. The version dir is the archive's top-level folder when it carries the release version, otherwise the release tag.
 
 Useful options:
 

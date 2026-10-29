@@ -52,6 +52,86 @@ describe("tool list", () => {
     expect(tags).not.toContain("held");
   });
 
+  test("renders the symlink and its target with a shortened home directory", () => {
+    const out = renderToolList(
+      [
+        entry({
+          type: "bundle",
+          symlink: {
+            path: "/home/me/.local/bin/code-server",
+            target:
+              "/home/me/Downloads2/code-server/code-server-4.143.1-linux-amd64/bin/code-server",
+          },
+        }),
+      ],
+      { width: 120, home: "/home/me" },
+    );
+    expect(out).toContain(
+      "~/.local/bin/code-server -> " +
+        "~/Downloads2/code-server/code-server-4.143.1-linux-amd64/bin/code-server",
+    );
+  });
+
+  test("puts a long symlink target on its own line instead of truncating it", () => {
+    const out = renderToolList(
+      [
+        entry({
+          type: "bundle",
+          symlink: {
+            path: "/Users/lamnt45/.local/bin/code-server",
+            target: "/Users/lamnt45/Downloads2/code-server/bin/code-server",
+          },
+        }),
+      ],
+      { width: 80 },
+    );
+    expect(out).toContain(
+      "\n  /Users/lamnt45/.local/bin/code-server\n" +
+        "  -> /Users/lamnt45/Downloads2/code-server/bin/code-server\n",
+    );
+  });
+
+  test("wraps a versioned target instead of truncating it", () => {
+    const target =
+      "/Users/lamnt45/Downloads2/code-server/code-server-4.143.1-linux-amd64/bin/code-server";
+    const out = renderToolList(
+      [
+        entry({
+          type: "bundle",
+          symlink: { path: "/Users/lamnt45/.local/bin/code-server", target },
+        }),
+      ],
+      { width: 80 },
+    );
+    const lines = out.split("\n");
+    expect(out).not.toContain("…");
+    expect(lines[4]).toContain("-> /Users/lamnt45/Downloads2/code-server/");
+    const wrapped = [lines[4] ?? "", lines[5] ?? ""]
+      .map((line) => line.trim().replace(/^->\s*/, ""))
+      .join("");
+    expect(wrapped).toBe(target);
+    for (const line of lines) expect(textWidth(line)).toBeLessThanOrEqual(80);
+  });
+
+  test("keeps split symlink lines inside the width", () => {
+    const out = renderToolList(
+      [
+        entry({
+          type: "bundle",
+          symlink: {
+            path: "/home/me/.local/bin/code-server",
+            target: "/home/me/Downloads2/code-server/bin/code-server",
+          },
+        }),
+      ],
+      { width: 40, home: "/home/me" },
+    );
+    const lines = out.split("\n");
+    expect(lines[3]).toContain("~/.local/bin/code-server");
+    expect(lines[4]).toContain("-> ~/Downloads2");
+    for (const line of lines) expect(textWidth(line)).toBeLessThanOrEqual(40);
+  });
+
   test("shows the hold marker when it fits", () => {
     expect(renderToolList([entry({ hold: true })], { width: 80 })).toContain("held");
   });

@@ -24,7 +24,7 @@ bundlePath/dn_<repo>_<random>/     <- temp dir, created per install
         └── directory bundle (has bin/<name>)
                 │  move whole package dir
                 ▼
-            bundlePath/<name>/      <- kept
+            bundlePath/<name>/<version-dir>/   <- kept
                 └── bin/<name>
                         ▲
         installPath/<name> ──symlink──┘
@@ -36,7 +36,10 @@ Key points (source: `src/providers/git/main.ts` `get()`, `src/helper/install.ts`
   It is removed in a `finally` block, **including the archive**. Archives are not kept.
 - A _bundle_ is detected by a launcher at `<pkg>/bin/<name>` or `<pkg>/<sub>/bin/<name>`.
   Exactly one match is required. The package dir is moved, not copied, to
-  `bundlePath/<name>`; `installPath/<name>` is a symlink to `bundlePath/<name>/bin/<name>`.
+  `bundlePath/<name>/<version-dir>`. The version dir keeps the archive's top-level folder when
+  it carries the release version (for example `code-server-4.143.1-linux-amd64`); otherwise
+  the release tag is used, appended to the folder name if one exists.
+  `installPath/<name>` is a symlink to `bundlePath/<name>/<version-dir>/bin/<name>`.
 - A _single binary_ is installed with `install <src> <installPath>/<name>` (a copy).
   There is no symlink and no retained archive.
 - If several executables are found where one was expected, the install fails rather than
@@ -61,7 +64,8 @@ Archives still live only in the per-install temp dir and are deleted after extra
 
 1. `installPath/<name>` (the binary, wrapper, or symlink).
 2. `bundlePath/<name>` **only when** the install path entry was a symlink pointing inside that
-   bundle. A real file is never followed into the bundle directory.
+   bundle (including its version dirs). A real file is never followed into the bundle
+   directory.
 
 Package installs are removed through the package manager instead.
 

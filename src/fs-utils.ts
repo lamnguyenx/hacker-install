@@ -6,6 +6,7 @@ import {
   lstat,
   mkdir,
   readFile,
+  readlink,
   realpath,
   rename,
   rm,
@@ -66,6 +67,14 @@ export async function isFile(path: string): Promise<boolean> {
 
 export async function ensureDir(path: string, mode = 0o700): Promise<void> {
   await mkdir(path, { recursive: true, mode });
+}
+
+export async function readlinkOrNull(path: string): Promise<string | null> {
+  try {
+    return await readlink(path);
+  } catch {
+    return null;
+  }
 }
 
 export async function realpathOrNull(path: string): Promise<string | null> {

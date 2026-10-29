@@ -1,4 +1,10 @@
+import { sep } from "node:path";
 import pc from "picocolors";
+
+export interface ToolSymlink {
+  path: string;
+  target: string;
+}
 
 export interface ToolListEntry {
   name: string;
@@ -8,12 +14,15 @@ export interface ToolListEntry {
   hold: boolean;
   source: string;
   description: string;
+  symlink?: ToolSymlink;
 }
 
 export interface ToolListOptions {
   title?: string;
   /** Wrap width in columns. 0 (or omitted) disables truncation, e.g. when piping. */
   width?: number;
+  /** Home directory used to shorten paths to `~`. Omit to print full paths. */
+  home?: string;
 }
 
 const INDENT = "  ";
@@ -94,6 +103,36 @@ function formatSource(source: string): string {
   return source.replace(/^https?:\/\//, "").replace(/\.git$/, "");
 }
 
+function formatHomePath(value: string, home?: string): string {
+  if (!home) return value;
+  if (value === home) return "~";
+  const prefix = home.endsWith(sep) ? home : `${home}${sep}`;
+  return value.startsWith(prefix) ? `~${sep}${value.slice(prefix.length)}` : value;
+}
+
+/** Splits a long path after `/` so every line fits, keeping the whole destination. */
+function wrapPath(path: string, max: number): string[] {
+  if (max <= 0 || textWidth(path) <= max) return [path];
+
+  const chunks: string[] = [];
+  let rest = path;
+  while (textWidth(rest) > max) {
+    const head = [...rest].slice(0, max).join("");
+    const slash = head.lastIndexOf("/");
+    let cut = slash > 0 ? slash + 1 : head.length;
+    // Avoid pushing a tiny tail (e.g. just the executable name) onto its own line.
+    if (cut > 0 && textWidth(rest.slice(cut)) < 12) {
+      const previous = head.lastIndexOf("/", cut - 2);
+      if (previous > 0) cut = previous + 1;
+    }
+    if (cut <= 0) break;
+    chunks.push(rest.slice(0, cut));
+    rest = rest.slice(cut);
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
+}
+
 function providerLabel(provider: string): string {
   return provider.replace(/-self$/, "");
 }
@@ -115,6 +154,24 @@ export function renderToolList(entries: ToolListEntry[], options: ToolListOption
     }
 
     const lines = [packLine(tags, width, false)];
+
+    if (entry.symlink) {
+      const link = formatHomePath(entry.symlink.path, options.home);
+      const target = formatHomePath(entry.symlink.target, options.home);
+      const style = (value: string) => pc.underline(pc.dim(value));
+      const combined = `${link} -> ${target}`;
+      if (width > 0 && textWidth(`${INDENT}${combined}`) > width) {
+        // Keep the destination readable instead of cutting it off after the link.
+        lines.push(packLine([{ text: link, style }], width, false));
+        const [first = target, ...overflow] = wrapPath(target, width - INDENT.length - 3);
+        lines.push(packLine([{ text: `-> ${first}`, style }], width, false));
+        for (const chunk of overflow) {
+          lines.push(packLine([{ text: `   ${chunk}`, style }], width, false));
+        }
+      } else {
+        lines.push(packLine([{ text: combined, style }], width, false));
+      }
+    }
 
     const details: Segment[] = [];
     const source = formatSource(entry.source);

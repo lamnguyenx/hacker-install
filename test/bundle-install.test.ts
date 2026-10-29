@@ -40,12 +40,11 @@ describe("bundle installation", () => {
     ).toBe(true);
 
     const link = join(dest, "code-server");
-    const installed = join(bundles, "code-server", "bin", "code-server");
+    const versionDir = join(bundles, "code-server", "code-server-1.0.0-macos-arm64");
+    const installed = join(versionDir, "bin", "code-server");
     expect((await import("node:fs/promises")).lstat(link)).resolves.toBeDefined();
     expect(await readFile(installed, "utf8")).toContain("1.0.0");
-    expect(await readFile(join(bundles, "code-server", "lib", "node"), "utf8")).toBe(
-      "runtime 1.0.0",
-    );
+    expect(await readFile(join(versionDir, "lib", "node"), "utf8")).toBe("runtime 1.0.0");
   });
 
   test("handles a bundle at the archive root", async () => {
@@ -61,13 +60,49 @@ describe("bundle installation", () => {
       await installBin(src, dest, {
         local: true,
         name: "mytool",
+        version: "v1.0.0",
         bundleRoot: bundles,
         exec: new FakeExec(),
         logger: silentLogger(),
       }),
     ).toBe(true);
 
-    expect(await readFile(join(bundles, "mytool", "bin", "mytool"), "utf8")).toContain("hi");
+    expect(await readFile(join(bundles, "mytool", "v1.0.0", "bin", "mytool"), "utf8")).toContain(
+      "hi",
+    );
+  });
+
+  test("appends the release tag when the extracted folder has no version", async () => {
+    const { root, cleanup } = await createTestContext();
+    cleanups.push(cleanup);
+    const src = join(root, "src");
+    const packageDir = join(src, "code-server-linux-amd64");
+    await mkdir(join(packageDir, "bin"), { recursive: true });
+    await writeFile(join(packageDir, "bin", "code-server"), "#!/bin/sh\necho hi\n", {
+      mode: 0o755,
+    });
+    const dest = join(root, "bin");
+    const bundles = join(root, "bundles");
+
+    expect(
+      await installBin(src, dest, {
+        local: true,
+        name: "code-server",
+        version: "v4.143.1",
+        bundleRoot: bundles,
+        exec: new FakeExec(),
+        logger: silentLogger(),
+      }),
+    ).toBe(true);
+
+    const installed = join(
+      bundles,
+      "code-server",
+      "code-server-linux-amd64-v4.143.1",
+      "bin",
+      "code-server",
+    );
+    expect(await readFile(installed, "utf8")).toContain("hi");
   });
 
   test("installs a single binary flat", async () => {
@@ -115,12 +150,15 @@ describe("bundle installation", () => {
       exec: new FakeExec(),
       logger: silentLogger(),
     };
-    expect(await installBin(v1, dest, options)).toBe(true);
-    expect(await installBin(v2, dest, options)).toBe(true);
+    expect(await installBin(v1, dest, { ...options, version: "v1.0.0" })).toBe(true);
+    expect(await installBin(v2, dest, { ...options, version: "v2.0.0" })).toBe(true);
 
-    expect(await readFile(join(bundles, "code-server", "bin", "code-server"), "utf8")).toContain(
-      "2.0.0",
-    );
+    expect(
+      await readFile(
+        join(bundles, "code-server", "code-server-2.0.0-macos-arm64", "bin", "code-server"),
+        "utf8",
+      ),
+    ).toContain("2.0.0");
     await expect(
       import("node:fs/promises").then(({ stat }) =>
         stat(join(bundles, "code-server", "code-server-1.0.0-macos-arm64")),

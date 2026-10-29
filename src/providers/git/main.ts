@@ -406,6 +406,7 @@ export class GitInteractProvider {
     return installBin(tempDir, this.ctx.installPath, {
       local,
       name: toolname,
+      version: release.tagName,
       bundleRoot: this.ctx.bundlePath,
       exec: this.ctx.exec,
       logger: this.ctx.logger,

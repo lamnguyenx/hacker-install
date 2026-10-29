@@ -94,7 +94,10 @@ hi config --no-pre-release
 
 - Keys are tool names, not `<source>#<name>`.
 - Release fields are camelCase; snake_case is tolerated when reading.
-- `hi state` prints the raw file; `hi ls --json` prints the reduced list shape.
+- `installMethod` records `binary` vs `package`. Bundle vs single binary is a layout detail and
+  is not stored; `hi ls` derives it from `installPath/<name>` (a symlink into `bundlePath`).
+- `hi state` prints the raw file; `hi ls --json` prints the reduced list shape, plus an optional
+  `symlink: { path, target }` for links.
 
 ## Legacy Python format is rejected
 

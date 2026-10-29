@@ -10,7 +10,8 @@ Use the borderless renderer in `src/ui/list.ts` (`renderToolList`) as the refere
 ```
 Installed tools (2)
 
-  code-server · v4.143.1 · binary · github
+  code-server · v4.143.1 · bundle · github
+  ~/.local/bin/code-server -> ~/Downloads2/code-server/code-server-4.143.1-linux-amd64/bin/code-server
   github.com/coder/code-server · VS Code in the browser
 
   lazygit · v0.54.1 · binary · github · held
@@ -21,9 +22,14 @@ Shape:
 
 1. Header: styled title + dim `(N)`.
 2. Blank line.
-3. Per entry: a **tags line** (`name · version · type · provider · flags`) and an optional
-   **detail line** (`source · description`).
+3. Per entry: a **tags line** (`name · version · type · provider · flags`), an optional
+   **symlink line** (`link -> target`), and an optional **detail line**
+   (`source · description`).
 4. Blank line between entries.
+
+`type` is `binary` for a copied single binary, `bundle` for a directory-wrapped release,
+`symlink` for any other install-path link, or the package type (`deb` / `rpm` / `AppImage`).
+Symlink paths are shortened against the home directory.
 
 ### Width
 
@@ -32,8 +38,10 @@ Shape:
   Machine-readable output must stay complete; scripts also have `--json`.
 - When a line exceeds the width, **drop whole low-priority tags** instead of cutting them:
   priority is `name → version → type → provider → flags`.
-- Truncate only what cannot be dropped: the name (when it alone overflows) and the tail of
-  the detail line, using `…`.
+- Split the symlink line into `link` and `-> target` lines, then wrap a long target at `/`
+  boundaries with a three-space continuation. The whole destination survives on an 80-column
+  terminal. Truncate only what still cannot fit: the name (when it alone overflows), a single
+  over-long path segment, and the tail of the detail line, using `…`.
 - Optional text with almost no room (descriptions under 16 columns) is omitted rather than
   rendered as a two-word stub.
 - Keep the two-space indent; it visually separates entries from the header and from shell

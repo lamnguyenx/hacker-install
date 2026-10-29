@@ -210,6 +210,7 @@ export class MiseInteractProvider {
     const installed = await installBin(tempDir, this.ctx.installPath, {
       local,
       name: toolname,
+      version: candidate.version,
       bundleRoot: this.ctx.bundlePath,
       exec: this.ctx.exec,
       logger: this.ctx.logger,

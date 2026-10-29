@@ -1,7 +1,7 @@
 import type { Dirent } from "node:fs";
 import { copyFile, cp, readdir, rename, stat, symlink } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { BunExecRunner, type ExecRunner } from "../exec.ts";
 import { isInstallCandidate } from "../filetype.ts";
 import {
@@ -20,6 +20,8 @@ import { requireSupportedPlatform } from "../platform.ts";
 export interface InstallBinOptions {
   local?: boolean;
   name?: string;
+  /** Release tag, used to name (or extend) the bundle version directory. */
+  version?: string;
   skipExtensions?: string[];
   bundleRoot?: string;
   exec?: ExecRunner;
@@ -64,7 +66,8 @@ async function movePath(source: string, target: string): Promise<void> {
   }
 }
 
-async function findBundleLauncher(src: string, name: string): Promise<string | null> {
+/** Returns the package directory containing `bin/<name>`, if there is exactly one. */
+async function findBundlePackageDir(src: string, name: string): Promise<string | null> {
   const candidates = [join(src, "bin", name)];
   let children: string[] = [];
   try {
@@ -79,7 +82,7 @@ async function findBundleLauncher(src: string, name: string): Promise<string | n
   const matches: string[] = [];
   for (const candidate of candidates) {
     try {
-      if ((await stat(candidate)).isFile()) matches.push(candidate);
+      if ((await stat(candidate)).isFile()) matches.push(dirname(dirname(candidate)));
     } catch {
       // not a launcher
     }
@@ -87,8 +90,31 @@ async function findBundleLauncher(src: string, name: string): Promise<string | n
   return matches.length === 1 ? (matches[0] as string) : null;
 }
 
+function safeDirName(value: string | undefined): string {
+  const cleaned = (value ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^[.-]+/, "");
+  return cleaned || "current";
+}
+
+/**
+ * Names the directory that holds one bundle install. It keeps the archive's
+ * top-level folder when that folder already carries the version, and otherwise
+ * appends the release tag so the version is always visible in the path.
+ */
+function bundleDirName(extracted: string, name: string, version: string | undefined): string {
+  const tag = safeDirName(version);
+  if (!version) return extracted === name ? tag : safeDirName(extracted);
+  if (extracted === name) return tag;
+
+  const token = tag.replace(/^v(?=\d)/, "");
+  return extracted.includes(token) ? safeDirName(extracted) : safeDirName(`${extracted}-${tag}`);
+}
+
 async function installBundle(
-  launcher: string,
+  packageDir: string,
+  versionDir: string,
   dest: string,
   name: string,
   bundleRoot: string,
@@ -96,14 +122,14 @@ async function installBundle(
   exec: ExecRunner,
   logger: Logger,
 ): Promise<boolean> {
-  const packageDir = dirname(dirname(launcher));
-  const target = join(expandHome(bundleRoot), name);
+  const root = join(expandHome(bundleRoot), name);
+  const target = join(root, versionDir);
 
-  if (await lexists(target)) {
-    if ((await isSymlink(target)) || !(await stat(target).catch(() => null))?.isDirectory()) {
-      await unlinkIfExists(target);
+  if (await lexists(root)) {
+    if ((await isSymlink(root)) || !(await stat(root).catch(() => null))?.isDirectory()) {
+      await unlinkIfExists(root);
     } else {
-      await removePath(target);
+      await removePath(root);
     }
   }
   await ensureDir(target, 0o700);
@@ -179,9 +205,13 @@ export async function installBin(
   const bundleRoot = options.bundleRoot ?? join(homedir(), "Downloads2");
 
   if (name) {
-    const launcher = await findBundleLauncher(src, name);
-    if (launcher) {
-      return installBundle(launcher, dest, name, bundleRoot, local, exec, logger);
+    const packageDir = await findBundlePackageDir(src, name);
+    if (packageDir) {
+      // Keep the archive's top-level folder (it usually carries name, version and
+      // platform); fall back to the release tag when it does not.
+      const extracted = resolve(packageDir) === resolve(src) ? name : basename(packageDir);
+      const versionDir = bundleDirName(extracted, name, options.version);
+      return installBundle(packageDir, versionDir, dest, name, bundleRoot, local, exec, logger);
     }
   }
 

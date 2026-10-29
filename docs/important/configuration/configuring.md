@@ -28,7 +28,7 @@ Default: `~/bin`.
 
 ## Bundle path
 
-Directory-wrapped releases (for example `bin/code-server` plus a `lib/` runtime) are extracted here. Default: `~/Downloads2`.
+Directory-wrapped releases (for example `bin/code-server` plus a `lib/` runtime) are kept here under `<bundlePath>/<name>/<version-dir>/`. Default: `~/Downloads2`.
 
 Single-file binaries are copied into the install path instead, and downloaded archives are removed after extraction — `bundlePath` is not a download history.
 
