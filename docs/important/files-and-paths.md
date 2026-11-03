@@ -40,7 +40,7 @@ the install command.
 ```jsonc
 {
   "version": 1,
-  "installPath": "~/.local/bin", // where binaries and symlinks land
+  "installPath": "~/bin", // default; where binaries and symlinks land
   "bundlePath": "~/Downloads2", // where directory-wrapped releases are kept
   "preRelease": false,
   "tokens": {
@@ -56,6 +56,13 @@ the install command.
 - Missing keys fall back to `defaultConfig()`.
 - Written atomically with mode `0600`; saving emits plain JSON, so **comments and trailing
   commas are accepted on read but lost on write**.
+- `installPath` defaults to `~/bin` (`defaultConfig()` in `src/schemas.ts`) and must be on
+  `PATH`. `hi` does not edit shell rc files or fall back to another directory when the
+  configured one is not searchable.
+- Changing `installPath` does not move existing tools. Move them or reinstall them; `hi`
+  looks for binaries only under the configured directory.
+- `hi config --path` stores the string it receives. Quote `'~/.local/bin'` to keep the tilde;
+  unquoted, the shell expands it to an absolute path before `hi` sees it.
 - Update via `hi config`, not by hand, when possible:
 
 ```bash

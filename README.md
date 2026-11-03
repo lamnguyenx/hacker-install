@@ -150,7 +150,10 @@ npm install -g hacker-install
 
 The package installs a single command: `hi`.
 
-> Installing from a local clone? Use `bun link` (after `bun run build:npm`) so the command tracks your checkout, or `bun add -g "$PWD"` / `npm i -g .` for a copy. `bun add -g .` is broken in Bun 1.4.3 — it resolves the relative spec to an empty package name.
+> Installing from a local clone? Run `make install-e` for an editable install: `hi` executes
+> `src/index.ts` through Bun, so source edits take effect without rebuilding. To install the
+> built artifact instead, run `bun run build:npm` first, then `bun add -g ./` or `npm i -g .`.
+> Bun silently skips the `hi` link if `dist/npm/index.js` is missing.
 
 > If you installed globally with Bun/npm, update with `bun update -g hacker-install` or `npm update -g hacker-install`. `hi me --upgrade` detects a global package install and prints this reminder instead of overwriting `~/bin/hi`.
 
@@ -169,6 +172,9 @@ bun run build
 # Build the npm bundle and link the CLI locally
 bun run build:npm
 bun link
+
+# Or make the global `hi` run src/index.ts directly (editable install)
+make install-e
 ```
 
 ## Quick start
@@ -456,10 +462,16 @@ For tests or portable setups, `HI_CONFIG_DIR` and `HI_STATE_DIR` override the di
 ### Install path
 
 ```bash
+# Pick a directory that is already on PATH
 hi config --path ~/.local/bin
+
+# Quote ~ to store the portable form; unquoted, the shell expands it
+hi config --path '~/.local/bin'
 ```
 
-Default: `~/bin`.
+Default: `~/bin`. `hi` does not edit shell rc files; if the configured directory is not on
+`PATH`, installed commands will not be found. Changing `installPath` does not move existing
+tools — move them or reinstall them.
 
 ### Bundle path
 
@@ -597,7 +609,10 @@ Leftover Python-format files are rejected with an error instead of being silentl
 ```bash
 bun install
 
-# Run from source
+# Editable global install: `hi` runs src/index.ts directly
+make install-e
+
+# Run from source without installing
 bun run dev -- --help
 
 # Tests (no network, Docker, or sudo required)
@@ -624,7 +639,11 @@ bun link
 
 The default test suite is fully mocked: it does not need network access, Docker, sudo, or a real package manager. Real installs can be exercised manually with `bun run dev -- get <url>`.
 
-After changing source, rebuild before checking the linked command: `bun run build:npm`, then run `hi ...`.
+`make install-e` creates an editable global install: `~/.bun/bin/hi` points at this checkout
+and runs `src/index.ts` directly, so source edits take effect immediately. To test the built
+artifact instead, run `bun run build:npm && bun link`; rebuild after every source change.
+Plain `bun add -g ./` also works, but only after `bun run build:npm` — if the `bin` target
+is missing, Bun still reports success (and may print a PATH hint) but skips the `hi` link.
 
 ## Versioning and releases
 

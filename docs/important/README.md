@@ -14,6 +14,9 @@ Rules of thumb:
 
 - One namespace, one schema: `hacker/hacker-install`.
 - One package, one command: npm package `hacker-install`, CLI `hi`.
-- `installPath` is on `PATH`; `bundlePath` is not.
+- `installPath` is on `PATH`; `bundlePath` is not. The default `installPath` is `~/bin`,
+  which is not guaranteed to be searchable.
+- Local checkouts use `make install-e` for an editable global `hi`; a plain
+  `bun add -g ./` installs a copy and needs `bun run build:npm` first.
 - Terminal output adapts to width; piped output is complete and unstyled.
 - Versions are `YYYY.MM.DD`, sourced from `package.json`, and baked into the build.

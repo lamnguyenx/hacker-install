@@ -60,7 +60,11 @@ Package installs are removed through the package manager instead.
 - Moving `bundlePath` breaks existing bundle symlinks in `installPath`. Re-run the installs,
   or fix the links.
 - `installPath` must be on `PATH`; `bundlePath` must not be.
-- The global `hi` itself is separate from this flow: `bun link` points `~/.bun/bin/hi` at
-  `dist/npm/index.js` in the checkout, so rebuild after changing source. End users normally
-  install `hacker-install` from npm or download a standalone binary; `hi me --upgrade` updates
-  the standalone binary, not an npm install.
+- The global `hi` itself is separate from this flow. `make install-e` writes a dev launcher
+  at `dist/npm/index.js` that imports `src/index.ts`, then runs `bun link`, so
+  `~/.bun/bin/hi` executes the checkout directly and source edits need no rebuild.
+- `bun run build:npm && bun link` instead links the bundled artifact; rebuild after each
+  source change. `bun add -g ./` also installs a copy, but only if `dist/npm/index.js`
+  exists — Bun silently skips the bin link when the target is missing.
+- End users normally install `hacker-install` from npm or download a standalone binary;
+  `hi me --upgrade` updates the standalone binary, not an npm install.
