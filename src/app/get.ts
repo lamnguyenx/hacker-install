@@ -14,6 +14,7 @@ export interface GetInput {
   name?: string;
   pkg?: boolean;
   hold?: boolean;
+  force?: boolean;
   dockerOpts?: string | null;
 }
 
@@ -57,6 +58,7 @@ export async function get(ctx: AppContext, input: GetInput): Promise<void> {
   const repo = await getRepoInfo(ctx, url);
   await new GitInteractProvider(repo, ctx, input.pkg ?? false).get({
     ...common,
+    force: input.force ?? false,
     assetFile: input.assetFile ?? "",
     dockerOpts: dockerOpts ?? undefined,
   });

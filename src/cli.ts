@@ -107,6 +107,7 @@ export function buildProgram(ctx: AppContext): Command {
     .option("-f, --file <file>", "Select a specific release asset filename")
     .option("-n, --name <name>", "Custom name to save the tool as")
     .option("-y, --yes", "Approve without prompt")
+    .option("-F, --force", "Reinstall even when the same release is already installed")
     .option("--pkg", "Install as OS package (deb/rpm/appimage)")
     .option("--docker-opts <opts>", "Extra options to pass to the docker run command")
     .option("-v, --verbose", "Enable verbose mode")
@@ -122,6 +123,7 @@ export function buildProgram(ctx: AppContext): Command {
         name: options.name ?? "",
         pkg: Boolean(options.pkg),
         hold: Boolean(parsed.tag),
+        force: Boolean(options.force),
         dockerOpts: options.dockerOpts ?? null,
       });
     });
@@ -150,8 +152,8 @@ export function buildProgram(ctx: AppContext): Command {
     .description("List all installed CLI tools")
     .option("--hold", "List tools that are kept on hold")
     .option("--json", "Print installed tools as JSON for scripting")
-    .action((options) => {
-      listInstalled(ctx, {
+    .action(async (options) => {
+      await listInstalled(ctx, {
         holdUpdate: Boolean(options.hold),
         asJson: Boolean(options.json),
       });
@@ -161,8 +163,8 @@ export function buildProgram(ctx: AppContext): Command {
     .command("info")
     .description("Show info about an installed CLI tool")
     .argument("<name>", "CLI command name")
-    .action((name: string) => {
-      getInfo(ctx, name);
+    .action(async (name: string) => {
+      await getInfo(ctx, name);
     });
 
   program

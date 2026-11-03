@@ -1,4 +1,4 @@
-import { join, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import pc from "picocolors";
 import type { AppContext } from "../context.ts";
 import { CliError } from "../errors.ts";
@@ -6,6 +6,7 @@ import {
   isDirectory,
   isSymlink,
   lexists,
+  readlinkOrNull,
   readTextIfExists,
   realpathOrNull,
   removePath,
@@ -31,26 +32,53 @@ interface ListRow {
   hold: boolean;
   source: string;
   description: string;
+  symlink?: { path: string; target: string };
 }
 
-function rowsFor(ctx: AppContext, options: ListOptions): ListRow[] {
-  return ctx.state
-    .all()
-    .filter((tool) => !options.holdUpdate || tool.holdUpdate)
-    .map((tool) => ({
+/**
+ * Describes how a tool actually landed on disk. Package installs are known
+ * from state; for everything else the install-path entry tells the story:
+ * a real file is a single binary, a link into bundlePath is a directory
+ * bundle, and any other link is a plain symlink.
+ */
+async function installInfo(
+  ctx: AppContext,
+  tool: InstalledTool,
+): Promise<Pick<ListRow, "type" | "symlink">> {
+  if (isPackageTool(tool)) return { type: tool.packageType };
+
+  const link = join(ctx.installPath, tool.name);
+  const rawTarget = await readlinkOrNull(link);
+  if (rawTarget === null) return { type: "binary" };
+
+  const target = isAbsolute(rawTarget) ? rawTarget : resolve(dirname(link), rawTarget);
+  const bundle = join(resolve(ctx.bundlePath), tool.name);
+  const isBundle = target === bundle || target.startsWith(`${bundle}${sep}`);
+  return {
+    type: isBundle ? "bundle" : "symlink",
+    symlink: { path: link, target },
+  };
+}
+
+async function rowsFor(ctx: AppContext, options: ListOptions): Promise<ListRow[]> {
+  const tools = ctx.state.all().filter((tool) => !options.holdUpdate || tool.holdUpdate);
+
+  const rows = await Promise.all(
+    tools.map(async (tool) => ({
       name: tool.name,
       version: tool.tagName,
-      type: isPackageTool(tool) ? tool.packageType : "binary",
+      ...(await installInfo(ctx, tool)),
       provider: tool.provider,
       hold: tool.holdUpdate,
       source: tool.source,
       description: tool.description || "",
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    })),
+  );
+  return rows.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function listInstalled(ctx: AppContext, options: ListOptions = {}): void {
-  const rows = rowsFor(ctx, options);
+export async function listInstalled(ctx: AppContext, options: ListOptions = {}): Promise<void> {
+  const rows = await rowsFor(ctx, options);
 
   if (options.asJson) {
     ctx.io.print(
@@ -73,28 +101,35 @@ export function listInstalled(ctx: AppContext, options: ListOptions = {}): void 
     renderToolList(rows, {
       title,
       width: ctx.io.isTTY ? terminalWidth() : 0,
+      home: ctx.paths.home,
     }),
   );
 }
 
-export function getInfo(ctx: AppContext, name: string): void {
+export async function getInfo(ctx: AppContext, name: string): Promise<void> {
   if (!isValidToolName(name)) throw new CliError(`Invalid tool name: ${name}`);
   const tool = ctx.state.get(name);
   if (!tool) {
     throw new CliError(`Tool not found: ${name}`);
   }
 
+  const info = await installInfo(ctx, tool);
+  const fields: Record<string, string> = {
+    Name: tool.name,
+    Description: tool.description || "N/A",
+    Source: tool.source,
+    Type: info.type,
+  };
+  if (info.symlink) {
+    fields.Symlink = info.symlink.path;
+    fields.Target = info.symlink.target;
+  }
+
   ctx.io.print(
-    renderTable(
-      [
-        {
-          Name: tool.name,
-          Description: tool.description || "N/A",
-          Source: tool.source,
-        },
-      ],
-      { title: `Info: ${name}`, noWrap: false },
-    ),
+    renderTable([fields], {
+      title: `Info: ${name}`,
+      noWrap: false,
+    }),
   );
 }
 

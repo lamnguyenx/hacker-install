@@ -1,5 +1,9 @@
 # Install flow and on-disk layout
 
+<p align="center">
+  <img src="../../../.github/images/flow.png" alt="How it works" width="800">
+</p>
+
 Two settings define where things end up:
 
 | Setting       | Default        | Holds                                                               |
@@ -20,7 +24,7 @@ bundlePath/dn_<repo>_<random>/     <- temp dir, created per install
         └── directory bundle (has bin/<name>)
                 │  move whole package dir
                 ▼
-            bundlePath/<name>/      <- kept
+            bundlePath/<name>/<version-dir>/   <- kept
                 └── bin/<name>
                         ▲
         installPath/<name> ──symlink──┘
@@ -32,7 +36,10 @@ Key points (source: `src/providers/git/main.ts` `get()`, `src/helper/install.ts`
   It is removed in a `finally` block, **including the archive**. Archives are not kept.
 - A _bundle_ is detected by a launcher at `<pkg>/bin/<name>` or `<pkg>/<sub>/bin/<name>`.
   Exactly one match is required. The package dir is moved, not copied, to
-  `bundlePath/<name>`; `installPath/<name>` is a symlink to `bundlePath/<name>/bin/<name>`.
+  `bundlePath/<name>/<version-dir>`. The version dir keeps the archive's top-level folder when
+  it carries the release version (for example `code-server-4.143.1-linux-amd64`); otherwise
+  the release tag is used, appended to the folder name if one exists.
+  `installPath/<name>` is a symlink to `bundlePath/<name>/<version-dir>/bin/<name>`.
 - A _single binary_ is installed with `install <src> <installPath>/<name>` (a copy).
   There is no symlink and no retained archive.
 - If several executables are found where one was expected, the install fails rather than
@@ -43,28 +50,36 @@ Key points (source: `src/providers/git/main.ts` `get()`, `src/helper/install.ts`
   system package manager and only recorded in state.
 - Docker installs write a wrapper script to `installPath/<name>`; the image is not stored.
 
+## Downloads
+
+`hi` prefers `aria2c` when it is installed: `--continue=true` (resume), `--split=8` and
+`--max-connection-per-server=8` by default. aria2c runs quietly and the CLI draws its own
+single-line progress bar from the growing file size. When aria2c is missing, fails, or stops
+short, the built-in downloader resumes the same partial file with an HTTP `Range` request.
+Archives still live only in the per-install temp dir and are deleted after extraction.
+
 ## Removal (`hi rm`)
 
 `src/app/manage.ts` removes:
 
 1. `installPath/<name>` (the binary, wrapper, or symlink).
 2. `bundlePath/<name>` **only when** the install path entry was a symlink pointing inside that
-   bundle. A real file is never followed into the bundle directory.
+   bundle (including its version dirs). A real file is never followed into the bundle
+   directory.
 
 Package installs are removed through the package manager instead.
 
 ## Implications
 
 - `bundlePath` is not a download history. If you want to keep tarballs, that needs a new
-  option (see the follow-up in the 2026-10-26 plan).
+  option (see the follow-up in the
+  [2026-10-26 plan](../../plans/2026/10/26/2026-10-26-global-install-config-sunset-and-list-ux.md)).
 - Moving `bundlePath` breaks existing bundle symlinks in `installPath`. Re-run the installs,
   or fix the links.
 - `installPath` must be on `PATH`; `bundlePath` must not be.
-- The global `hi` itself is separate from this flow. `make install-e` writes a dev launcher
-  at `dist/npm/index.js` that imports `src/index.ts`, then runs `bun link`, so
-  `~/.bun/bin/hi` executes the checkout directly and source edits need no rebuild.
-- `bun run build:npm && bun link` instead links the bundled artifact; rebuild after each
-  source change. `bun add -g ./` also installs a copy, but only if `dist/npm/index.js`
-  exists — Bun silently skips the bin link when the target is missing.
-- End users normally install `hacker-install` from npm or download a standalone binary;
-  `hi me --upgrade` updates the standalone binary, not an npm install.
+- The global `hi` itself is separate from this flow. `bun link` points `~/.bun/bin/hi` at
+  `dist/npm/index.js` in the checkout, so it runs the last build. `make install-e` writes a
+  launcher there that imports `src/index.ts` instead, so edits apply without a rebuild; see
+  [Local development](../development/local-setup.md). End users normally install
+  `hacker-install` from npm or download a standalone binary; `hi me --upgrade` updates the
+  standalone binary, not an npm install.

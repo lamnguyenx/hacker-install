@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { mkdir, symlink, writeFile } from "node:fs/promises";
 import {
   getInfo,
   holdTool,
@@ -39,7 +40,7 @@ describe("list/info/hold/state", () => {
     );
     await ctx.state.save();
 
-    listInstalled(ctx, { asJson: true });
+    await listInstalled(ctx, { asJson: true });
     const parsed = JSON.parse(io.prints[0] ?? "[]");
     expect(parsed).toHaveLength(2);
     expect(parsed[0]).toEqual({
@@ -53,13 +54,63 @@ describe("list/info/hold/state", () => {
     expect(parsed[1].type).toBe("deb");
   });
 
+  test("lists a bundle as a symlink with its original location", async () => {
+    const io = new FakeIO();
+    const { ctx, root, cleanup } = await createTestContext({ io });
+    cleanups.push(cleanup);
+    const bundle = `${root}/bundles/code-server/code-server-1.0.0`;
+    await mkdir(`${bundle}/bin`, { recursive: true });
+    await writeFile(`${bundle}/bin/code-server`, "#!/bin/sh\n");
+    await mkdir(`${root}/bin`, { recursive: true });
+    await symlink(`${bundle}/bin/code-server`, `${root}/bin/code-server`);
+    ctx.state.set(sampleTool({ name: "code-server", description: "VS Code in the browser" }));
+    await ctx.state.save();
+
+    await listInstalled(ctx, { asJson: true });
+    const row = JSON.parse(io.prints[0] ?? "[]")[0];
+    expect(row.type).toBe("bundle");
+    expect(row.symlink).toEqual({
+      path: `${root}/bin/code-server`,
+      target: `${bundle}/bin/code-server`,
+    });
+
+    io.prints.length = 0;
+    await listInstalled(ctx);
+    expect(io.output()).toContain(
+      "~/bin/code-server -> ~/bundles/code-server/code-server-1.0.0/bin/code-server",
+    );
+
+    io.prints.length = 0;
+    await getInfo(ctx, "code-server");
+    expect(io.output()).toContain("bundle");
+    expect(io.output()).toContain("Symlink");
+    expect(io.output()).toContain(`${root}/bin/code-server`);
+    expect(io.output()).toContain("Target");
+    expect(io.output()).toContain(`${bundle}/bin/code-server`);
+  });
+
+  test("lists a symlink outside bundlePath as a plain symlink", async () => {
+    const io = new FakeIO();
+    const { ctx, root, cleanup } = await createTestContext({ io });
+    cleanups.push(cleanup);
+    await mkdir(`${root}/bin`, { recursive: true });
+    await writeFile(`${root}/elsewhere`, "#!/bin/sh\n");
+    await symlink(`${root}/elsewhere`, `${root}/bin/custom`);
+    ctx.state.set(sampleTool({ name: "custom" }));
+
+    await listInstalled(ctx, { asJson: true });
+    const row = JSON.parse(io.prints[0] ?? "[]")[0];
+    expect(row.type).toBe("symlink");
+    expect(row.symlink.target).toBe(`${root}/elsewhere`);
+  });
+
   test("filters held tools", async () => {
     const io = new FakeIO();
     const { ctx, cleanup } = await createTestContext({ io });
     cleanups.push(cleanup);
     ctx.state.set(sampleTool({ name: "a" }));
     ctx.state.set(sampleTool({ name: "b", holdUpdate: true }));
-    listInstalled(ctx, { holdUpdate: true, asJson: true });
+    await listInstalled(ctx, { holdUpdate: true, asJson: true });
     expect(JSON.parse(io.prints[0] ?? "[]").map((row: any) => row.name)).toEqual(["b"]);
   });
 
@@ -68,9 +119,10 @@ describe("list/info/hold/state", () => {
     const { ctx, cleanup } = await createTestContext({ io });
     cleanups.push(cleanup);
     ctx.state.set(sampleTool({ name: "a", description: "desc" }));
-    getInfo(ctx, "a");
+    await getInfo(ctx, "a");
     expect(io.output()).toContain("desc");
-    expect(() => getInfo(ctx, "missing")).toThrow(CliError);
+    expect(io.output()).toContain("binary");
+    await expect(getInfo(ctx, "missing")).rejects.toThrow(CliError);
   });
 
   test("hold toggles the flag and saves", async () => {

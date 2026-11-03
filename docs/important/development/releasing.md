@@ -1,7 +1,7 @@
 # Versioning and releases
 
 Durable release contract for the project. Task-specific history lives in
-[`../plans/`](../plans/).
+[`../../plans/`](../../plans/).
 
 ## Version scheme
 

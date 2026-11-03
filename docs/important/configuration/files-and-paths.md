@@ -101,7 +101,10 @@ hi config --no-pre-release
 
 - Keys are tool names, not `<source>#<name>`.
 - Release fields are camelCase; snake_case is tolerated when reading.
-- `hi state` prints the raw file; `hi ls --json` prints the reduced list shape.
+- `installMethod` records `binary` vs `package`. Bundle vs single binary is a layout detail and
+  is not stored; `hi ls` derives it from `installPath/<name>` (a symlink into `bundlePath`).
+- `hi state` prints the raw file; `hi ls --json` prints the reduced list shape, plus an optional
+  `symlink: { path, target }` for links.
 
 ## Legacy Python format is rejected
 
@@ -118,7 +121,7 @@ Recovery is to delete the old file and either re-run `hi config` or reinstall th
 
 - Do not add a second namespace, a fallback path, or a legacy reader. One path, one shape.
 - Keep `installPath` and `bundlePath` semantically separate; see
-  [install-flow.md](./install-flow.md).
+  [install flow](../install/install-flow.md).
 - Any new persisted field must be optional on read and defaulted in `parseConfig` /
   `parseInstalledTool`, so old files keep loading.
 - Bump `CONFIG_VERSION` / `STATE_VERSION` only with a real migration story; newer-version files
